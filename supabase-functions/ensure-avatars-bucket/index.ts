@@ -10,7 +10,7 @@ Deno.serve(async (req) => {
   }
 
   const { data, error } = await supabase.storage.createBucket("avatars", {
-    public: true,
+    public: false,
   });
 
   if (error && !String(error.message).toLowerCase().includes("already exists")) {

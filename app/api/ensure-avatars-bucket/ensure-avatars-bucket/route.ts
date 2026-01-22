@@ -12,7 +12,7 @@ export async function POST() {
   }
 
   const supabase = createClient(supabaseUrl, serviceKey);
-  const { data, error } = await supabase.storage.createBucket("avatars", { public: true });
+  const { data, error } = await supabase.storage.createBucket("avatars", { public: false });
 
   if (error && !String(error.message).toLowerCase().includes("already exists")) {
     return new Response(JSON.stringify({ ok: false, error: error.message }), {

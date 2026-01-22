@@ -15,7 +15,7 @@ type FeedPost = {
   user_id: string;
   content: string;
   created_at: string;
-  profiles?: { username: string | null; show_likes: boolean } | null;
+  profiles?: { username: string | null } | null;
   like_count?: number;
   i_liked?: boolean;
 };
@@ -59,11 +59,11 @@ export default function FeedPage() {
 
     const postIds = (rawPosts ?? []).map((p) => p.id);
 
-    // Buscar perfis dos autores (para saber show_likes e username)
+    // Buscar perfis dos autores (username)
     const userIds = Array.from(new Set((rawPosts ?? []).map((p) => p.user_id)));
     const { data: profiles, error: pErr } = await supabase
       .from("profiles")
-      .select("id, username, show_likes")
+      .select("id, username")
       .in("id", userIds);
 
     if (pErr) return setMsg("Erro perfis: " + pErr.message);
@@ -312,8 +312,6 @@ export default function FeedPage() {
       <div className="grid gap-4">
         {posts.map((p) => {
           const username = p.profiles?.username ?? "user";
-          const showLikes = p.profiles?.show_likes ?? true;
-
           return (
             <Card key={p.id} className="border-border bg-card/70">
               <CardContent className="py-5 grid gap-3">
@@ -326,14 +324,9 @@ export default function FeedPage() {
 
                 <div className="flex items-center gap-3 pt-2">
                   <Button variant={p.i_liked ? "default" : "outline"} onClick={() => toggleLike(p)}>
-                    {p.i_liked ? "Liked" : "Like"}
+                    {p.i_liked ? "Revelado" : "Revelar"}
                   </Button>
-
-                  {showLikes ? (
-                    <div className="text-sm text-muted-foreground">{p.like_count} likes</div>
-                  ) : (
-                    <div className="text-sm text-muted-foreground">likes ocultos</div>
-                  )}
+                  <div className="text-sm text-muted-foreground">Revelacoes sao privadas.</div>
                 </div>
               </CardContent>
             </Card>

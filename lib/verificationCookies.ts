@@ -9,6 +9,7 @@ export function setVerificationCookies(status: VerificationStatus | null, authed
     document.cookie = "vero_authed=; Max-Age=0; path=/";
     document.cookie = "vero_verification=; Max-Age=0; path=/";
     document.cookie = "vero_admin=; Max-Age=0; path=/";
+    document.cookie = "vero_unlocked=; Max-Age=0; path=/";
     return;
   }
 
@@ -21,4 +22,9 @@ export function setVerificationCookies(status: VerificationStatus | null, authed
 export function setAdminCookie(isAdmin: boolean) {
   if (typeof document === "undefined") return;
   document.cookie = `vero_admin=${isAdmin ? "1" : "0"}; Max-Age=${COOKIE_MAX_AGE}; path=/; SameSite=Lax`;
+}
+
+export function setUnlockedCookie(unlocked: boolean) {
+  if (typeof document === "undefined") return;
+  document.cookie = `vero_unlocked=${unlocked ? "1" : "0"}; Max-Age=${COOKIE_MAX_AGE}; path=/; SameSite=Lax`;
 }

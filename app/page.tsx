@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { isBootstrapAdmin } from "@/lib/admin";
-import { setAdminCookie, setVerificationCookies } from "@/lib/verificationCookies";
+import { setAdminCookie, setUnlockedCookie, setVerificationCookies } from "@/lib/verificationCookies";
 
 type Status = "pending" | "approved" | "rejected";
 
@@ -14,6 +14,7 @@ export default function Home() {
   const [status, setStatus] = useState<Status | "loading">("loading");
   const [isAuthed, setIsAuthed] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [intent, setIntent] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -22,6 +23,7 @@ export default function Home() {
       if (!user) {
         setIsAuthed(false);
         setVerificationCookies(null, false);
+        setUnlockedCookie(false);
         setAdminCookie(false);
         return setStatus("pending");
       }
@@ -33,7 +35,7 @@ export default function Home() {
 
       const { data, error } = await supabase
         .from("profiles")
-        .select("verification_status, is_admin")
+        .select("verification_status, is_admin, unlocked")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -41,6 +43,7 @@ export default function Home() {
         setStatus("pending");
         setVerificationCookies("pending", true);
         setAdminCookie(isBootstrapAdmin(user.email));
+        setUnlockedCookie(false);
         return;
       }
 
@@ -61,6 +64,19 @@ export default function Home() {
       const nextAdmin = !!data?.is_admin || isBootstrapAdmin(user.email);
       setAdminCookie(nextAdmin);
       setIsAdmin(nextAdmin);
+      setUnlockedCookie(!!data?.unlocked);
+      if (nextStatus === "approved" && !data?.unlocked) {
+        router.push("/unlock");
+      }
+
+      const { data: intentRow, error: intentErr } = await supabase
+        .from("profiles")
+        .select("intent")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (!intentErr) {
+        setIntent((intentRow as any)?.intent ?? null);
+      }
     })();
   }, []);
 
@@ -80,40 +96,63 @@ export default function Home() {
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {!intent ? (
+            <Link
+              href="/intent"
+              className="rounded-2xl border border-border bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.12),_transparent_60%)] p-5 transition hover:bg-card"
+            >
+              <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Intent</div>
+              <div className="mt-2 text-lg font-semibold">Escolher intencao</div>
+            </Link>
+          ) : null}
           <Link
-            href="/feed"
+            href="/intent"
             className="rounded-2xl border border-border bg-card/70 p-5 transition hover:bg-card"
           >
-            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Social</div>
-            <div className="mt-2 text-lg font-semibold">Feed</div>
+            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Intent</div>
+            <div className="mt-2 text-lg font-semibold">Atualizar</div>
           </Link>
           <Link
-            href="/dating/discover"
+            href="/discover"
             className="rounded-2xl border border-border bg-card/70 p-5 transition hover:bg-card"
           >
-            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Dating</div>
-            <div className="mt-2 text-lg font-semibold">Discover</div>
+            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Discover</div>
+            <div className="mt-2 text-lg font-semibold">Explorar</div>
           </Link>
           <Link
-            href="/dating/matches"
+            href="/inbox"
             className="rounded-2xl border border-border bg-card/70 p-5 transition hover:bg-card"
           >
-            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Dating</div>
-            <div className="mt-2 text-lg font-semibold">Matches</div>
+            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Inbox</div>
+            <div className="mt-2 text-lg font-semibold">Pendentes</div>
+          </Link>
+          <Link
+            href="/chats"
+            className="rounded-2xl border border-border bg-card/70 p-5 transition hover:bg-card"
+          >
+            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Chats</div>
+            <div className="mt-2 text-lg font-semibold">Ativos</div>
           </Link>
           <Link
             href="/dm"
             className="rounded-2xl border border-border bg-card/70 p-5 transition hover:bg-card"
           >
-            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Mensagens</div>
-            <div className="mt-2 text-lg font-semibold">DM</div>
+            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Private</div>
+            <div className="mt-2 text-lg font-semibold">Private Space</div>
           </Link>
           <Link
             href="/profile"
             className="rounded-2xl border border-border bg-card/70 p-5 transition hover:bg-card"
           >
-            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Conta</div>
-            <div className="mt-2 text-lg font-semibold">Perfil</div>
+            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Perfil</div>
+            <div className="mt-2 text-lg font-semibold">Curado</div>
+          </Link>
+          <Link
+            href="/dating/matches"
+            className="rounded-2xl border border-border bg-card/70 p-5 transition hover:bg-card"
+          >
+            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Conexoes</div>
+            <div className="mt-2 text-lg font-semibold">Aceites</div>
           </Link>
           <Link
             href="/settings"
@@ -121,6 +160,13 @@ export default function Home() {
           >
             <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Conta</div>
             <div className="mt-2 text-lg font-semibold">Settings</div>
+          </Link>
+          <Link
+            href="/feed"
+            className="rounded-2xl border border-border bg-card/70 p-5 transition hover:bg-card"
+          >
+            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Social</div>
+            <div className="mt-2 text-lg font-semibold">Feed</div>
           </Link>
           <Link
             href="/promocoes"
@@ -135,6 +181,20 @@ export default function Home() {
           >
             <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Subscricao</div>
             <div className="mt-2 text-lg font-semibold">Boosts</div>
+          </Link>
+          <Link
+            href="/invite"
+            className="rounded-2xl border border-border bg-card/70 p-5 transition hover:bg-card"
+          >
+            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Convites</div>
+            <div className="mt-2 text-lg font-semibold">Viral loop</div>
+          </Link>
+          <Link
+            href="/premium"
+            className="rounded-2xl border border-border bg-card/70 p-5 transition hover:bg-card"
+          >
+            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Premium</div>
+            <div className="mt-2 text-lg font-semibold">Paywall</div>
           </Link>
           {isAdmin ? (
             <Link

@@ -5,7 +5,8 @@ import Link from "next/link";
 export default function SubscricaoPage() {
   return (
     <main className="grid gap-8 max-w-5xl">
-      <div className="rounded-[28px] border border-border bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_55%)] p-8">
+      <div className="relative overflow-hidden rounded-[28px] border border-border bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_55%)] p-8">
+        <div className="pointer-events-none absolute -left-16 -top-16 h-44 w-44 rounded-full bg-white/10 blur-2xl" />
         <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Subscricao</div>
         <h1 className="mt-3 text-4xl font-semibold">Boosts & Discover+</h1>
         <p className="mt-3 text-sm text-muted-foreground">
@@ -37,7 +38,12 @@ export default function SubscricaoPage() {
         </div>
 
         <div className="rounded-2xl border border-border bg-white/5 p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.2)]">
-          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Pro</div>
+          <div className="flex items-center justify-between">
+            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Pro</div>
+            <span className="rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+              Mais vendido
+            </span>
+          </div>
           <div className="mt-2 text-3xl font-semibold">14,99€</div>
           <div className="text-xs text-muted-foreground">por mes</div>
           <ul className="mt-4 grid gap-2 text-sm text-muted-foreground">

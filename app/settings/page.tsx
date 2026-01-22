@@ -71,8 +71,8 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid gap-2">
-            <Label>DMs</Label>
-            <div className="text-sm opacity-70">Quem te pode enviar DM.</div>
+            <Label>Private Space</Label>
+            <div className="text-sm opacity-70">Quem te pode contactar em privado.</div>
             <div className="flex gap-2">
               <Button
                 variant={profile?.dm_privacy === "all" ? "secondary" : "outline"}

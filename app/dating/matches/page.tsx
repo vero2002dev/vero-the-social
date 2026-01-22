@@ -9,6 +9,7 @@ type MatchRow = {
   user1: string;
   user2: string;
   created_at: string;
+  expires_at?: string | null;
 };
 
 export default function MatchesPage() {
@@ -27,11 +28,11 @@ export default function MatchesPage() {
       }
       setMe(user.id);
 
-      const { data, error } = await supabase
-        .from("matches")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(100);
+    const { data, error } = await supabase
+      .from("matches")
+      .select("id, user1, user2, created_at, expires_at")
+      .order("created_at", { ascending: false })
+      .limit(100);
 
       if (error) return setMsg("Erro: " + error.message);
       setMatches((data as MatchRow[]) ?? []);
@@ -43,12 +44,18 @@ export default function MatchesPage() {
     return m.user1 === me ? m.user2 : m.user1;
   }
 
+  const now = Date.now();
+  const visibleMatches = matches.filter((m: any) => {
+    const exp = m.expires_at ? new Date(m.expires_at).getTime() : new Date(m.created_at).getTime() + 48 * 3600 * 1000;
+    return exp > now;
+  });
+
   return (
     <main className="space-y-6">
       <div className="flex items-center justify-between rounded-2xl border border-border bg-card/70 p-4">
         <div>
           <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Conexoes</div>
-          <h1 className="text-2xl font-semibold">Matches</h1>
+          <h1 className="text-2xl font-semibold">Aceites</h1>
         </div>
         <Link className="text-xs uppercase tracking-[0.2em] text-muted-foreground" href="/dating/discover">
           Discover
@@ -58,22 +65,22 @@ export default function MatchesPage() {
       {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
 
       <div className="space-y-3">
-        {matches.map((m) => (
+        {visibleMatches.map((m) => (
           <div
             key={m.id}
             className="border rounded-2xl p-4 flex items-center justify-between bg-card/70"
           >
             <div className="text-sm">
-              Match com: <span className="font-mono text-xs">{otherUser(m)}</span>
+              Aceite com: <span className="font-mono text-xs">{otherUser(m)}</span>
             </div>
             <span className="text-xs text-muted-foreground">
               {new Date(m.created_at).toLocaleString()}
             </span>
           </div>
         ))}
-        {matches.length === 0 && (
+        {visibleMatches.length === 0 && (
           <div className="border rounded-2xl p-4 bg-card/70">
-            Ainda não tens matches.
+            Ainda nao tens aceites ativos.
           </div>
         )}
       </div>

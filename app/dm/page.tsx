@@ -131,7 +131,7 @@ export default function DmPage() {
   if (!me) {
     return (
       <main className="space-y-3">
-        <h1 className="text-2xl font-semibold">DM</h1>
+        <h1 className="text-2xl font-semibold">Private Space</h1>
         {msg && <p className="text-sm opacity-80">{msg}</p>}
         <Link className="underline" href="/login">
           Ir para Login
@@ -147,8 +147,8 @@ export default function DmPage() {
     <main className="space-y-6">
       <div className="flex items-center justify-between rounded-2xl border border-border bg-card/70 p-4">
         <div>
-          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Mensagens</div>
-          <h1 className="text-2xl font-semibold">DM</h1>
+          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Private</div>
+          <h1 className="text-2xl font-semibold">Private Space</h1>
         </div>
         <Link className="text-xs uppercase tracking-[0.2em] text-muted-foreground" href="/settings">
           Settings
@@ -158,6 +158,9 @@ export default function DmPage() {
       {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
 
       <div className="grid gap-4">
+        <div className="rounded-2xl border border-border bg-card/70 p-4 text-sm text-muted-foreground">
+          Conteudo sensivel so pode ser enviado com permissao explicita.
+        </div>
         <div className="rounded-2xl border border-border bg-card/70 p-4">
           <div className="font-semibold">Pedidos recebidos</div>
           {incoming.length === 0 ? (
@@ -177,14 +180,14 @@ export default function DmPage() {
                         onClick={() => updateConsent(c.id, "accepted")}
                         disabled={loading}
                       >
-                        Aceitar
+                        Permitir
                       </button>
                       <button
                         className="rounded-full border px-3 py-1 text-xs"
                         onClick={() => updateConsent(c.id, "rejected")}
                         disabled={loading}
                       >
-                        Rejeitar
+                        Recusar
                       </button>
                     </div>
                   </div>
@@ -213,7 +216,7 @@ export default function DmPage() {
                         onClick={() => updateConsent(c.id, "canceled")}
                         disabled={loading}
                       >
-                        Cancelar
+                        Cancelar permissao
                       </button>
                     ) : null}
                   </div>
@@ -224,9 +227,9 @@ export default function DmPage() {
         </div>
 
         <div className="rounded-2xl border border-border bg-card/70 p-4">
-          <div className="font-semibold">Matches</div>
+          <div className="font-semibold">Conexoes</div>
           {matches.length === 0 ? (
-            <div className="text-sm opacity-70 mt-2">Ainda nao tens matches.</div>
+            <div className="text-sm opacity-70 mt-2">Ainda nao tens conexoes.</div>
           ) : (
             <div className="mt-3 grid gap-3">
               {matches.map((m) => {
@@ -242,11 +245,11 @@ export default function DmPage() {
                     </div>
                     <div className="flex items-center gap-2 text-xs">
                       {consent?.status === "accepted" ? (
-                        <span className="opacity-70">Consentimento ativo</span>
+                        <span className="opacity-70">Permissao ativa</span>
                       ) : consent?.status === "pending" ? (
                         <span className="opacity-70">Pendente</span>
                       ) : consent?.status === "rejected" ? (
-                        <span className="opacity-70">Rejeitado</span>
+                        <span className="opacity-70">Recusado</span>
                       ) : null}
                       {canRequest ? (
                         <button
@@ -254,7 +257,7 @@ export default function DmPage() {
                           onClick={() => requestConsent(otherId)}
                           disabled={loading}
                         >
-                          {consent ? "Pedir novamente" : "Pedir consentimento"}
+                          {consent ? "Pedir novamente" : "Pedir permissao"}
                         </button>
                       ) : null}
                     </div>

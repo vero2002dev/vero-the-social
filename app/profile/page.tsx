@@ -16,6 +16,7 @@ type ProfileRow = {
   username: string | null;
   bio: string | null;
   avatar_url: string | null;
+  avatar_path: string | null;
   city: string | null;
   verification_status: string | null;
   show_followers: boolean;
@@ -33,17 +34,13 @@ type MediaItem = {
   moderation_status?: "pending" | "safe" | "sensual" | "explicit" | "pending_manual" | null;
 };
 
-type ProfileRef = {
-  id: string;
-  username: string | null;
-};
-
 export default function ProfilePage() {
   const router = useRouter();
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarPath, setAvatarPath] = useState<string | null>(null);
   const [city, setCity] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -52,8 +49,7 @@ export default function ProfilePage() {
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [mediaLoading, setMediaLoading] = useState(false);
   const mediaInputRef = useRef<HTMLInputElement | null>(null);
-  const [followers, setFollowers] = useState<ProfileRef[]>([]);
-  const [following, setFollowing] = useState<ProfileRef[]>([]);
+  const [revealedMedia, setRevealedMedia] = useState<Set<number>>(new Set());
   const [hasShowComments, setHasShowComments] = useState(true);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const avatarBucketReady = useRef<boolean | null>(null);
@@ -85,7 +81,7 @@ export default function ProfilePage() {
     const { data, error } = await supabase
       .from("profiles")
       .select(
-        "id, username, bio, avatar_url, city, verification_status, show_followers, show_following, show_likes, show_comments, dm_privacy"
+        "id, username, bio, avatar_url, avatar_path, city, verification_status, show_followers, show_following, show_likes, show_comments, dm_privacy"
       )
       .eq("id", user.id)
       .maybeSingle();
@@ -96,7 +92,7 @@ export default function ProfilePage() {
       if (missingShowComments || missingDmPrivacy) {
         const { data: fallback, error: fbErr } = await supabase
           .from("profiles")
-          .select("id, username, bio, avatar_url, city, verification_status, show_followers, show_following, show_likes")
+          .select("id, username, bio, avatar_url, avatar_path, city, verification_status, show_followers, show_following, show_likes")
           .eq("id", user.id)
           .maybeSingle();
         if (fbErr) {
@@ -108,10 +104,10 @@ export default function ProfilePage() {
         setProfile(withDefault as ProfileRow);
         setUsername((withDefault as any).username ?? "");
         setBio((withDefault as any).bio ?? "");
-        setAvatarUrl((withDefault as any).avatar_url ?? null);
+        setAvatarPath((withDefault as any).avatar_path ?? null);
+        await resolveAvatarUrl((withDefault as any).avatar_path, (withDefault as any).avatar_url);
         setCity((withDefault as any).city ?? "");
         await loadMedia(user.id);
-        await loadFollowData(user.id);
         return;
       }
       setMsg("Erro a carregar perfil: " + error.message);
@@ -121,11 +117,22 @@ export default function ProfilePage() {
     setProfile(data as ProfileRow);
     setUsername((data as any).username ?? "");
     setBio((data as any).bio ?? "");
-    setAvatarUrl((data as any).avatar_url ?? null);
+    setAvatarPath((data as any).avatar_path ?? null);
+    await resolveAvatarUrl((data as any).avatar_path, (data as any).avatar_url);
     setCity((data as any).city ?? "");
     setHasShowComments(true);
     await loadMedia(user.id);
-    await loadFollowData(user.id);
+  }
+
+  async function resolveAvatarUrl(path?: string | null, fallbackUrl?: string | null) {
+    if (path) {
+      const { data: signed, error } = await supabase.storage.from("avatars").createSignedUrl(path, 60 * 60);
+      if (!error) {
+        setAvatarUrl(signed?.signedUrl ?? null);
+        return;
+      }
+    }
+    setAvatarUrl(fallbackUrl ?? null);
   }
 
   useEffect(() => {
@@ -235,51 +242,6 @@ export default function ProfilePage() {
     setMedia(withUrls as MediaItem[]);
   }
 
-  async function loadFollowData(userId: string) {
-    const { data: followersData, error: followersErr } = await supabase
-      .from("follows")
-      .select("follower_id")
-      .eq("following_id", userId);
-
-    if (followersErr) {
-      setMsg("Erro a carregar seguidores: " + followersErr.message);
-      return;
-    }
-
-    const { data: followingData, error: followingErr } = await supabase
-      .from("follows")
-      .select("following_id")
-      .eq("follower_id", userId);
-
-    if (followingErr) {
-      setMsg("Erro a carregar seguindo: " + followingErr.message);
-      return;
-    }
-
-    const followerIds = (followersData ?? []).map((row: any) => row.follower_id);
-    const followingIds = (followingData ?? []).map((row: any) => row.following_id);
-
-    const { data: followerProfiles } = followerIds.length
-      ? await supabase.from("profiles").select("id, username").in("id", followerIds)
-      : { data: [] };
-
-    const { data: followingProfiles } = followingIds.length
-      ? await supabase.from("profiles").select("id, username").in("id", followingIds)
-      : { data: [] };
-
-    const mappedFollowers = (followerProfiles ?? []).map((row: any) => ({
-      id: row.id,
-      username: row.username ?? null,
-    }));
-
-    const mappedFollowing = (followingProfiles ?? []).map((row: any) => ({
-      id: row.id,
-      username: row.username ?? null,
-    }));
-
-    setFollowers(mappedFollowers);
-    setFollowing(mappedFollowing);
-  }
 
   async function onPickMedia(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = Array.from(e.target.files ?? []);
@@ -340,10 +302,11 @@ export default function ProfilePage() {
       const user = await requireUser();
       const ready = await ensureAvatarBucket();
       if (!ready) return;
-      const path = `${user.id}/${Date.now()}_${file.name}`;
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `user/${user.id}/avatar.${ext}`;
       let upErr: { message: string } | null = null;
       const upload = async () =>
-        supabase.storage.from("avatars").upload(path, file, { upsert: true });
+        supabase.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type });
 
       const firstTry = await upload();
       upErr = firstTry.error;
@@ -362,12 +325,9 @@ export default function ProfilePage() {
         }
       }
 
-      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-      const publicUrl = data?.publicUrl ?? null;
-
       const { error } = await supabase
         .from("profiles")
-        .update({ avatar_url: publicUrl })
+        .update({ avatar_path: path })
         .eq("id", user.id);
 
       if (error) {
@@ -375,7 +335,8 @@ export default function ProfilePage() {
         return;
       }
 
-      setAvatarUrl(publicUrl);
+      setAvatarPath(path);
+      await resolveAvatarUrl(path, null);
       setMsg("Foto de perfil atualizada ✅");
     } finally {
       setLoading(false);
@@ -497,41 +458,8 @@ export default function ProfilePage() {
           </div>
 
           <div className="grid gap-2">
-            <Label>Seguidores</Label>
-            {profile?.show_followers ? (
-              <>
-                <div className="text-sm opacity-70">{followers.length} seguidores</div>
-                <div className="flex flex-wrap gap-2 text-sm">
-                  {followers.slice(0, 6).map((f) => (
-                    <span key={f.id} className="rounded-full border px-2 py-1 text-xs">
-                      @{f.username ?? "user"}
-                    </span>
-                  ))}
-                  {followers.length === 0 && <span className="text-xs opacity-70">Ainda sem seguidores.</span>}
-                </div>
-              </>
-            ) : (
-              <div className="text-sm opacity-70">Seguidores ocultos</div>
-            )}
-          </div>
-
-          <div className="grid gap-2">
-            <Label>Seguindo</Label>
-            {profile?.show_following ? (
-              <>
-                <div className="text-sm opacity-70">{following.length} a seguir</div>
-                <div className="flex flex-wrap gap-2 text-sm">
-                  {following.slice(0, 6).map((f) => (
-                    <span key={f.id} className="rounded-full border px-2 py-1 text-xs">
-                      @{f.username ?? "user"}
-                    </span>
-                  ))}
-                  {following.length === 0 && <span className="text-xs opacity-70">Ainda não segues ninguém.</span>}
-                </div>
-              </>
-            ) : (
-              <div className="text-sm opacity-70">Seguindo oculto</div>
-            )}
+            <Label>Relacoes</Label>
+            <div className="text-sm opacity-70">Privado. Sem contagens publicas.</div>
           </div>
 
           <div className="grid gap-2">
@@ -556,23 +484,41 @@ export default function ProfilePage() {
               <div className="text-sm opacity-70">Ainda sem media.</div>
             ) : (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {media.map((item) =>
-                  item.media_type === "video" ? (
-                    <video
-                      key={item.id}
-                      src={item.signed_url ?? ""}
-                      className="h-36 w-full rounded-md object-cover"
-                      controls
-                    />
-                  ) : (
-                    <img
-                      key={item.id}
-                      src={item.signed_url ?? ""}
-                      alt="media"
-                      className="h-36 w-full rounded-md object-cover"
-                    />
-                  )
-                )}
+                {media.map((item) => {
+                  const isSensitive =
+                    item.moderation_status === "sensual" ||
+                    item.moderation_status === "pending_manual" ||
+                    item.moderation_status === "pending";
+                  const isRevealed = revealedMedia.has(item.id);
+                  const blurClass = isSensitive && !isRevealed ? "blur-md" : "";
+                  return (
+                    <div key={item.id} className="relative">
+                      {item.media_type === "video" ? (
+                        <video
+                          src={item.signed_url ?? ""}
+                          className={`h-36 w-full rounded-md object-cover ${blurClass}`}
+                          controls
+                        />
+                      ) : (
+                        <img
+                          src={item.signed_url ?? ""}
+                          alt="media"
+                          className={`h-36 w-full rounded-md object-cover ${blurClass}`}
+                        />
+                      )}
+                      {isSensitive && !isRevealed ? (
+                        <button
+                          className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-white bg-black/40 rounded-md"
+                          onClick={() =>
+                            setRevealedMedia((prev) => new Set(prev).add(item.id))
+                          }
+                        >
+                          Revelar
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -608,8 +554,8 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="grid gap-2 pt-2">
-                  <Label>DMs</Label>
-                  <div className="text-sm opacity-70">Quem te pode enviar DM.</div>
+                  <Label>Private Space</Label>
+                  <div className="text-sm opacity-70">Quem te pode contactar em privado.</div>
                   <div className="flex gap-2">
                     <Button
                       variant={profile?.dm_privacy === "all" ? "secondary" : "outline"}
@@ -627,38 +573,6 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="grid gap-3 pt-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium">Mostrar seguidores</div>
-                      <div className="text-sm opacity-70">Se desligar, ninguém vê quantos te seguem.</div>
-                    </div>
-                    <Button variant="outline" onClick={() => toggle("show_followers")}>
-                      {profile?.show_followers ? "ON" : "OFF"}
-                    </Button>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium">Mostrar quem eu sigo</div>
-                      <div className="text-sm opacity-70">Se desligar, ninguém vê a tua lista de following.</div>
-                    </div>
-                    <Button variant="outline" onClick={() => toggle("show_following")}>
-                      {profile?.show_following ? "ON" : "OFF"}
-                    </Button>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium">Mostrar likes</div>
-                      <div className="text-sm opacity-70">
-                        Se desligar, ninguém vê contagem de likes nos teus posts.
-                      </div>
-                    </div>
-                    <Button variant="outline" onClick={() => toggle("show_likes")}>
-                      {profile?.show_likes ? "ON" : "OFF"}
-                    </Button>
-                  </div>
-
                   {hasShowComments ? (
                     <div className="flex items-center justify-between">
                       <div>

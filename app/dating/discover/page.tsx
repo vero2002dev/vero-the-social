@@ -10,13 +10,34 @@ type Profile = {
   avatar_url?: string | null;
   bio?: string | null;
   verification_status?: string | null;
+  intent?: string | null;
 };
 
 export default function DiscoverPage() {
   const [me, setMe] = useState<string | null>(null);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [idx, setIdx] = useState(0);
-  const [msg, setMsg] = useState<string | null>(null);
+const [msg, setMsg] = useState<string | null>(null);
+
+  function formatIntent(value?: string | null) {
+    if (!value) return "Intencao por definir";
+    switch (value) {
+      case "curiosidade":
+        return "Curiosidade";
+      case "conexao":
+        return "Conexao";
+      case "desejo":
+        return "Desejo";
+      case "conversa":
+        return "Conversa sem filtros";
+      case "privado":
+        return "Algo privado";
+      case "passageiro":
+        return "Algo passageiro";
+      default:
+        return "Intencao por definir";
+    }
+  }
 
   const current = useMemo(() => profiles[idx] ?? null, [profiles, idx]);
 
@@ -34,7 +55,7 @@ export default function DiscoverPage() {
       // buscar perfis (MVP): todos menos eu
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, display_name, avatar_url, bio, verification_status")
+        .select("id, display_name, avatar_url, bio, verification_status, intent")
         .neq("id", user.id)
         .limit(50);
 
@@ -53,6 +74,22 @@ export default function DiscoverPage() {
     setMsg(null);
     if (!me || !current) return;
 
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const { count, error: countErr } = await supabase
+      .from("likes")
+      .select("id", { count: "exact", head: true })
+      .eq("liker_id", me)
+      .gte("created_at", start.toISOString())
+      .is("post_id", null);
+
+    if (countErr && String(countErr.message).includes("created_at")) {
+      // fallback: allow if schema doesn't have created_at
+    } else if ((count ?? 0) >= 5) {
+      setMsg("Limite diario atingido. Volta amanha.");
+      return;
+    }
+
     const { error } = await supabase.from("likes").insert({
       liker_id: me,
       liked_id: current.id,
@@ -64,7 +101,7 @@ export default function DiscoverPage() {
       return;
     }
 
-    setMsg("✅ Like enviado");
+    setMsg("✅ Revelacao enviada");
     nextCard();
   }
 
@@ -88,7 +125,7 @@ export default function DiscoverPage() {
           <h1 className="text-2xl font-semibold">Discover</h1>
         </div>
         <Link className="text-xs uppercase tracking-[0.2em] text-muted-foreground" href="/dating/matches">
-          Matches
+          Aceites
         </Link>
       </div>
 
@@ -110,7 +147,7 @@ export default function DiscoverPage() {
             </div>
             <div>
               <div className="font-semibold text-lg">{current.display_name ?? "Sem nome"}</div>
-              <div className="text-xs opacity-70">{current.verification_status ?? "pending"}</div>
+              <div className="text-xs opacity-70">Intencao: {formatIntent(current.intent)}</div>
             </div>
           </div>
 
@@ -118,10 +155,10 @@ export default function DiscoverPage() {
 
           <div className="flex gap-3">
             <button onClick={nextCard} className="px-5 py-2 rounded-full border bg-transparent">
-              Passar
+              Agora nao
             </button>
             <button onClick={like} className="px-5 py-2 rounded-full border bg-white text-black">
-              Like
+              Revelar
             </button>
           </div>
         </div>

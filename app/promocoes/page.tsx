@@ -5,7 +5,8 @@ import Link from "next/link";
 export default function PromocoesPage() {
   return (
     <main className="grid gap-8 max-w-4xl">
-      <div className="rounded-[28px] border border-border bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_55%)] p-8">
+      <div className="relative overflow-hidden rounded-[28px] border border-border bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_55%)] p-8">
+        <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
         <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Promocoes</div>
         <h1 className="mt-3 text-4xl font-semibold">Promo do Perfil</h1>
         <p className="mt-3 text-sm text-muted-foreground">
@@ -42,8 +43,13 @@ export default function PromocoesPage() {
               <div className="text-xs text-muted-foreground">24 horas de destaque</div>
             </div>
             <div className="rounded-xl border border-border bg-background/40 p-4">
-              <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                Boost semana
+              <div className="flex items-center justify-between">
+                <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                  Boost semana
+                </div>
+                <span className="rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                  Mais vendido
+                </span>
               </div>
               <div className="mt-2 text-2xl font-semibold">9,99€</div>
               <div className="text-xs text-muted-foreground">7 dias de destaque</div>
