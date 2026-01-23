@@ -33,6 +33,9 @@ export default function ChatPage() {
   const [canSendMedia, setCanSendMedia] = useState(false);
   const [sendingImage, setSendingImage] = useState(false);
   const [mediaUrls, setMediaUrls] = useState<Record<number, string>>({});
+  const [starterPrompts, setStarterPrompts] = useState<{ id: number; text: string }[]>([]);
+  const [matchCreatedAt, setMatchCreatedAt] = useState<string | null>(null);
+  const [nudgeShown, setNudgeShown] = useState<{ first?: boolean; stale?: boolean }>({});
 
   async function refreshGate() {
     try {
@@ -67,11 +70,18 @@ export default function ChatPage() {
           const b = (matchRow as any).user2 ?? (matchRow as any).user_b;
           const other = a === me ? b : a;
           setOtherUserId(other);
+          setMatchCreatedAt((matchRow as any).created_at ?? null);
         }
       }
       const msgs = await fetchMessages(conversationId);
       setMessages(msgs);
       await refreshGate();
+      if (msgs.length === 0) {
+        const { data } = await supabase.rpc("rpc_starter_prompts_for_conversation", {
+          p_conversation_id: conversationId,
+        });
+        setStarterPrompts((data ?? []) as any[]);
+      }
     } catch (e: any) {
       setErr(e?.message ?? "Erro a abrir conversa.");
     } finally {
@@ -174,6 +184,25 @@ export default function ChatPage() {
     };
   }, [messages]);
 
+  useEffect(() => {
+    if (loading) return;
+    const now = Date.now();
+    if (messages.length === 0 && matchCreatedAt) {
+      const ageMs = now - new Date(matchCreatedAt).getTime();
+      if (ageMs > 2 * 60 * 60 * 1000 && !nudgeShown.first) {
+        setNudgeShown((prev) => ({ ...prev, first: true }));
+        logEvent("nudge_shown", { type: "first_message" });
+      }
+    }
+    if (messages.length === 1) {
+      const lastAt = new Date(messages[0].created_at).getTime();
+      if (now - lastAt > 24 * 60 * 60 * 1000 && !nudgeShown.stale) {
+        setNudgeShown((prev) => ({ ...prev, stale: true }));
+        logEvent("nudge_shown", { type: "stale_chat" });
+      }
+    }
+  }, [loading, messages, matchCreatedAt, nudgeShown]);
+
   return (
     <main className="min-h-screen bg-black text-white flex flex-col">
       <div className="max-w-xl w-full mx-auto flex-1 flex flex-col">
@@ -231,6 +260,35 @@ export default function ChatPage() {
         <div className="flex-1 p-6 overflow-y-auto">
           {err && <div className="mb-4 text-sm text-red-400">{err}</div>}
           {revealMsg && <div className="mb-4 text-sm text-neutral-400">{revealMsg}</div>}
+
+          {messages.length === 0 && starterPrompts.length > 0 ? (
+            <div className="mb-4 space-y-2">
+              <div className="text-xs text-neutral-500">Sugestoes para comecar:</div>
+              {starterPrompts.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={async () => {
+                    await onSend(p.text);
+                    await logEvent("starter_prompt_used", { conversationId });
+                  }}
+                  className="block w-full text-left rounded-xl border border-white/10 bg-white/5 p-3 text-sm hover:border-white/20"
+                >
+                  {p.text}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {!loading && nudgeShown.first ? (
+            <div className="mb-4 rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-neutral-300">
+              Conversas que comecam nas primeiras horas tem mais probabilidade de continuar.
+            </div>
+          ) : null}
+          {!loading && nudgeShown.stale ? (
+            <div className="mb-4 rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-neutral-300">
+              Se nao for agora, provavelmente nao sera.
+            </div>
+          ) : null}
 
           {loading ? (
             <div className="text-sm text-neutral-400">A carregar...</div>

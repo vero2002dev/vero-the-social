@@ -35,7 +35,11 @@ export default function Nav() {
         .maybeSingle();
 
       const nextStatus = (profile?.verification_status as any) ?? "pending";
-      const nextAdmin = !!profile?.is_admin || isBootstrapAdmin(user.email);
+      let nextAdmin = !!profile?.is_admin || isBootstrapAdmin(user.email);
+      if (!nextAdmin) {
+        const { data: adminCheck } = await supabase.rpc("rpc_is_admin");
+        nextAdmin = !!adminCheck;
+      }
       setVerificationStatus(nextStatus);
       setIsAdmin(nextAdmin);
       setVerificationCookies(nextStatus, true);

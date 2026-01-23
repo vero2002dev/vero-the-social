@@ -7,12 +7,15 @@ import { useRouter } from "next/navigation";
 import { rpcUsage } from "@/lib/invites";
 import { setUnlockedCookie } from "@/lib/verificationCookies";
 import { logEvent } from "@/lib/events";
+import { rpcUserQuality } from "@/lib/quality";
 
 export default function DiscoverPage() {
   const [rows, setRows] = useState<DiscoverRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [quality, setQuality] = useState<{ discover_bonus: number; match_bonus: number } | null>(null);
+  const [qualityLogged, setQualityLogged] = useState(false);
 
   const router = useRouter();
 
@@ -25,6 +28,12 @@ export default function DiscoverPage() {
       if (!usage.unlocked) {
         router.push("/unlock");
         return;
+      }
+      const q = await rpcUserQuality();
+      setQuality({ discover_bonus: q.discover_bonus ?? 0, match_bonus: q.match_bonus ?? 0 });
+      if (!qualityLogged && (q.discover_bonus > 0 || q.match_bonus > 0)) {
+        setQualityLogged(true);
+        await logEvent("limits_relaxed", { reason: "high_quality_usage" });
       }
       const data = await rpcDiscover();
       setRows(data);
@@ -74,6 +83,12 @@ export default function DiscoverPage() {
         </div>
 
         {err && <div className="mt-4 text-sm text-red-400">{err}</div>}
+
+        {quality && (quality.discover_bonus > 0 || quality.match_bonus > 0) ? (
+          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-neutral-300">
+            Boa dinamica esta semana. Alguns limites foram aliviados.
+          </div>
+        ) : null}
 
         <div className="mt-6">
           {loading ? (

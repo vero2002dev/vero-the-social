@@ -61,7 +61,11 @@ export default function Home() {
       const nextStatus = (data?.verification_status as Status) ?? "pending";
       setStatus(nextStatus);
       setVerificationCookies(nextStatus, true);
-      const nextAdmin = !!data?.is_admin || isBootstrapAdmin(user.email);
+      let nextAdmin = !!data?.is_admin || isBootstrapAdmin(user.email);
+      if (!nextAdmin) {
+        const { data: adminCheck } = await supabase.rpc("rpc_is_admin");
+        nextAdmin = !!adminCheck;
+      }
       setAdminCookie(nextAdmin);
       setIsAdmin(nextAdmin);
       setUnlockedCookie(!!data?.unlocked);

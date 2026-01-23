@@ -69,6 +69,22 @@ as $$
   select exists (select 1 from public.admin_users a where a.user_id = p_user);
 $$;
 
+create or replace function public.rpc_is_admin()
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  uid uuid;
+begin
+  uid := public._require_auth();
+  return public._is_admin(uid);
+end;
+$$;
+
+grant execute on function public.rpc_is_admin() to authenticated;
+
 create or replace function public.rpc_admin_metrics(p_days int default 14)
 returns table (
   day date,
