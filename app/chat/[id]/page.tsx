@@ -36,6 +36,8 @@ export default function ChatPage() {
   const [starterPrompts, setStarterPrompts] = useState<{ id: number; text: string }[]>([]);
   const [matchCreatedAt, setMatchCreatedAt] = useState<string | null>(null);
   const [nudgeShown, setNudgeShown] = useState<{ first?: boolean; stale?: boolean }>({});
+  const [plan, setPlan] = useState<string>("free");
+  const [revealState, setRevealState] = useState<{ profile?: boolean; media?: boolean }>({});
 
   async function refreshGate() {
     try {
@@ -56,6 +58,7 @@ export default function ChatPage() {
         router.push("/unlock");
         return;
       }
+      setPlan(usage.plan ?? "free");
       const conv = await fetchConversation(conversationId);
       const { data: auth } = await supabase.auth.getUser();
       const me = auth.user?.id ?? null;
@@ -187,21 +190,21 @@ export default function ChatPage() {
   useEffect(() => {
     if (loading) return;
     const now = Date.now();
-    if (messages.length === 0 && matchCreatedAt) {
+    if (plan !== "premium" && messages.length === 0 && matchCreatedAt) {
       const ageMs = now - new Date(matchCreatedAt).getTime();
       if (ageMs > 2 * 60 * 60 * 1000 && !nudgeShown.first) {
         setNudgeShown((prev) => ({ ...prev, first: true }));
         logEvent("nudge_shown", { type: "first_message" });
       }
     }
-    if (messages.length === 1) {
+    if (plan !== "premium" && messages.length === 1) {
       const lastAt = new Date(messages[0].created_at).getTime();
       if (now - lastAt > 24 * 60 * 60 * 1000 && !nudgeShown.stale) {
         setNudgeShown((prev) => ({ ...prev, stale: true }));
         logEvent("nudge_shown", { type: "stale_chat" });
       }
     }
-  }, [loading, messages, matchCreatedAt, nudgeShown]);
+  }, [loading, messages, matchCreatedAt, nudgeShown, plan]);
 
   return (
     <main className="min-h-screen bg-black text-white flex flex-col">
@@ -224,13 +227,19 @@ export default function ChatPage() {
                 try {
                   await rpcRequestReveal(otherUserId, "profile");
                   setRevealMsg("Reveal de perfil pedido.");
+                  setRevealState((prev) => ({ ...prev, profile: true }));
+                  setTimeout(
+                    () => setRevealState((prev) => ({ ...prev, profile: false })),
+                    2500
+                  );
                 } catch (e: any) {
                   setRevealMsg(e?.message ?? "Erro no reveal.");
                 }
               }}
               disabled={!otherUserId}
+              style={revealState.profile ? { opacity: 0.65 } : undefined}
             >
-              Reveal Perfil
+              {revealState.profile ? "Pedido feito" : "Reveal Perfil"}
             </button>
             <button
               className="rounded-2xl border border-white/10 px-3 py-2 text-xs hover:border-white/20 disabled:opacity-60"
@@ -239,13 +248,19 @@ export default function ChatPage() {
                 try {
                   await rpcRequestReveal(otherUserId, "media");
                   setRevealMsg("Reveal de media pedido.");
+                  setRevealState((prev) => ({ ...prev, media: true }));
+                  setTimeout(
+                    () => setRevealState((prev) => ({ ...prev, media: false })),
+                    2500
+                  );
                 } catch (e: any) {
                   setRevealMsg(e?.message ?? "Erro no reveal.");
                 }
               }}
               disabled={!otherUserId}
+              style={revealState.media ? { opacity: 0.65 } : undefined}
             >
-              Reveal Media
+              {revealState.media ? "Pedido feito" : "Reveal Media"}
             </button>
             <button
               className="rounded-2xl border border-white/10 px-4 py-2 text-sm hover:border-white/20 disabled:opacity-60"
@@ -256,6 +271,7 @@ export default function ChatPage() {
             </button>
           </div>
         </div>
+        <div className="px-6 pt-2 text-xs text-neutral-500">Nem tudo precisa ser visto.</div>
 
         <div className="flex-1 p-6 overflow-y-auto">
           {err && <div className="mb-4 text-sm text-red-400">{err}</div>}
@@ -279,25 +295,30 @@ export default function ChatPage() {
             </div>
           ) : null}
 
-          {!loading && nudgeShown.first ? (
+          {!loading && plan !== "premium" && nudgeShown.first ? (
             <div className="mb-4 rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-neutral-300">
               Conversas que comecam nas primeiras horas tem mais probabilidade de continuar.
             </div>
           ) : null}
-          {!loading && nudgeShown.stale ? (
+          {!loading && plan !== "premium" && nudgeShown.stale ? (
             <div className="mb-4 rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-neutral-300">
               Se nao for agora, provavelmente nao sera.
             </div>
+          ) : null}
+          {!loading && plan !== "premium" && messages.length === 0 && matchCreatedAt ? (
+            new Date(matchCreatedAt).getTime() < Date.now() - 24 * 60 * 60 * 1000 ? (
+              <div className="mb-4 rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-neutral-300">
+                Conversas nao iniciadas tendem a desaparecer.
+              </div>
+            ) : null
           ) : null}
 
           {loading ? (
             <div className="text-sm text-neutral-400">A carregar...</div>
           ) : messages.length === 0 ? (
             <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div className="font-medium">Comeca simples.</div>
-              <div className="mt-1 text-sm text-neutral-400">
-                Uma pergunta direta &gt; uma frase bonita.
-              </div>
+              <div className="font-medium">O silencio tambem e uma escolha.</div>
+              <div className="mt-1 text-sm text-neutral-400">Nem tudo precisa ser visto.</div>
             </div>
           ) : (
             <div className="space-y-3">

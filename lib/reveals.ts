@@ -11,16 +11,7 @@ export type RevealRow = {
 };
 
 export async function fetchPendingRevealsForMe() {
-  const { data: auth } = await supabase.auth.getUser();
-  const me = auth.user?.id;
-  if (!me) throw new Error("Sessao invalida.");
-
-  const { data, error } = await supabase
-    .from("reveals")
-    .select("id,from_user,to_user,kind,status,created_at,expires_at")
-    .eq("to_user", me)
-    .eq("status", "requested")
-    .order("created_at", { ascending: false });
+  const { data, error } = await supabase.rpc("rpc_pending_reveals");
 
   if (error) throw error;
   return (data ?? []) as RevealRow[];

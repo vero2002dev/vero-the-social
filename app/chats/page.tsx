@@ -11,6 +11,7 @@ export default function ChatsPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [plan, setPlan] = useState<string>("free");
   const router = useRouter();
 
   async function load() {
@@ -23,6 +24,7 @@ export default function ChatsPage() {
         router.push("/unlock");
         return;
       }
+      setPlan(usage.plan ?? "free");
       const data = await fetchActiveChats();
       setItems(data);
     } catch (e: any) {
@@ -65,6 +67,17 @@ export default function ChatsPage() {
         {err && <div className="mt-4 text-sm text-red-400">{err}</div>}
 
         <div className="mt-6">
+          {plan === "free" && items.length >= 3 ? (
+            <div className="mb-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-neutral-300">
+              Algumas pessoas preferem mais precisao.
+              <button
+                className="mt-3 w-full rounded-2xl bg-white text-black py-2.5 text-sm font-medium"
+                onClick={() => router.push("/premium")}
+              >
+                Ativar VERO+
+              </button>
+            </div>
+          ) : null}
           {loading ? (
             <div className="text-sm text-neutral-400">A carregar...</div>
           ) : items.length === 0 ? (
@@ -72,6 +85,9 @@ export default function ChatsPage() {
               <div className="font-medium">Ainda sem chats.</div>
               <div className="mt-1 text-sm text-neutral-400">
                 Faz match e abre uma conversa.
+              </div>
+              <div className="mt-3 text-xs text-neutral-500">
+                Algumas conversas aqui comecaram com uma frase.
               </div>
             </div>
           ) : (
@@ -83,9 +99,11 @@ export default function ChatsPage() {
           )}
         </div>
 
-        <p className="mt-8 text-xs text-neutral-500">
-          Algumas coisas expiram. E intencional.
-        </p>
+        {plan !== "premium" ? (
+          <p className="mt-8 text-xs text-neutral-500">
+            Algumas coisas expiram. E intencional.
+          </p>
+        ) : null}
       </div>
     </main>
   );

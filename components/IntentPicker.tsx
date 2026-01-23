@@ -40,9 +40,9 @@ export default function IntentPicker() {
 
   return (
     <div className="w-full max-w-xl mx-auto p-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Agora.</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">O que procuras agora?</h1>
       <p className="mt-2 text-sm text-neutral-400">
-        Define a tua intencao. Isto muda o que ves.
+        Isto nao define quem es. So este momento.
       </p>
 
       <div className="mt-6 grid grid-cols-1 gap-3">
@@ -99,7 +99,7 @@ export default function IntentPicker() {
         disabled={loading}
         className="mt-6 w-full rounded-2xl bg-white text-black py-3 font-medium disabled:opacity-60"
       >
-        {loading ? "A guardar..." : "Continuar"}
+        {loading ? "A assumir..." : "Assumir intencao"}
       </button>
 
       <p className="mt-3 text-xs text-neutral-500">

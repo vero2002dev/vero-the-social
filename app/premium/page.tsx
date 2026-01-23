@@ -26,6 +26,7 @@ export default function PremiumPage() {
         <p className="mt-2 text-sm text-neutral-400">
           Mais controlo. Mais acesso. Sem virar app barulhenta.
         </p>
+        <p className="mt-2 text-xs text-neutral-500">Menos pessoas. Mais precisao.</p>
 
         <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
           <div className="flex justify-between text-sm">

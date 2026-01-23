@@ -28,7 +28,12 @@ export default function IntentPage() {
 
   return (
     <main className="min-h-screen bg-black text-white flex items-start justify-center">
-      <IntentPicker />
+      <div className="w-full">
+        <div className="max-w-xl mx-auto px-6 pt-6 text-xs text-neutral-500">
+          Algumas regras nao sao ditas. Sao sentidas.
+        </div>
+        <IntentPicker />
+      </div>
     </main>
   );
 }

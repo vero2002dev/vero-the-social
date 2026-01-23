@@ -68,14 +68,14 @@ export default function PendingMatchCard({
               disabled={busy}
               className="rounded-2xl border border-white/10 py-2.5 text-sm hover:border-white/20 disabled:opacity-60"
             >
-              Rejeitar
+              Fechar
             </button>
             <button
               onClick={onAccept}
               disabled={busy}
               className="rounded-2xl bg-white text-black py-2.5 text-sm font-medium disabled:opacity-60"
             >
-              {busy ? "A aceitar..." : "Aceitar"}
+              {busy ? "…" : "Abrir"}
             </button>
           </div>
 

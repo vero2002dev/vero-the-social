@@ -32,6 +32,7 @@ export default function UnlockPage() {
     try {
       await rpcClaimInvite(code.trim());
       await logEvent("unlock_success");
+      await new Promise((r) => setTimeout(r, 600));
       setUnlockedCookie(true);
       router.push("/intent");
     } catch (e: any) {
@@ -47,6 +48,12 @@ export default function UnlockPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Entrar no VERO</h1>
         <p className="mt-2 text-sm text-neutral-400">
           VERO e por convite. Introduz o teu codigo.
+        </p>
+        <p className="mt-2 text-xs text-neutral-500">
+          Algumas regras nao sao ditas. Sao sentidas.
+        </p>
+        <p className="mt-2 text-xs text-neutral-500">
+          Algumas conversas aqui comecaram com uma frase.
         </p>
 
         <input

@@ -43,6 +43,11 @@ export default function InvitePage() {
     setErr(null);
     setCreating(true);
     try {
+      if ((usage?.plan ?? "free") !== "premium" && (usage?.invite_week_remaining ?? 0) <= 0) {
+        setErr("Algumas pessoas preferem mais precisao.");
+        router.push("/premium");
+        return;
+      }
       await rpcCreateInvite();
       await logEvent("invite_create");
       await load();
@@ -78,6 +83,17 @@ export default function InvitePage() {
           <div className="mt-6 text-sm text-neutral-400">A carregar...</div>
         ) : (
           <>
+            {(usage?.plan ?? "free") !== "premium" && (usage?.invite_week_remaining ?? 0) <= 0 ? (
+              <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-neutral-300">
+                Algumas pessoas preferem mais precisao.
+                <button
+                  className="mt-3 w-full rounded-2xl bg-white text-black py-2.5 text-sm font-medium"
+                  onClick={() => router.push("/premium")}
+                >
+                  Ativar VERO+
+                </button>
+              </div>
+            ) : null}
             <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-neutral-300">Restantes esta semana</div>
@@ -96,6 +112,9 @@ export default function InvitePage() {
 
               <p className="mt-2 text-xs text-neutral-500">
                 Regras: convites sao limitados para manter qualidade e FOMO.
+              </p>
+              <p className="mt-2 text-xs text-neutral-500">
+                Convites sao regenerados semanalmente.
               </p>
             </div>
 

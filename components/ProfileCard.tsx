@@ -85,11 +85,11 @@ export default function ProfileCard({
             disabled={requesting}
             className="mt-4 w-full rounded-2xl bg-white text-black py-2.5 font-medium disabled:opacity-60"
           >
-            {requesting ? "A enviar…" : "Pedir entrada"}
+            {requesting ? "Pedido enviado. Agora esperas." : "Pedir entrada"}
           </button>
 
           <p className="mt-2 text-xs text-neutral-500">
-            Matches expiram. Sem guardar para depois.
+            Se pedires entrada, tens 48h.
           </p>
         </div>
       </div>

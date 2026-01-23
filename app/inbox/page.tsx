@@ -84,6 +84,7 @@ export default function InboxPage() {
     setErr(null);
     setBusyMatchId(matchId);
     try {
+      await new Promise((r) => setTimeout(r, 1200));
       const res = await rpcRespondMatch({ match_id: matchId, action: "accept" });
       const convId = res.conversation_id;
       setMatches((prev) => prev.filter((m) => m.id !== matchId));
@@ -112,6 +113,7 @@ export default function InboxPage() {
   async function acceptReveal(id: number) {
     setBusyRevealId(id);
     try {
+      await new Promise((r) => setTimeout(r, 1000));
       await rpcRespondReveal(id, "accept");
       setReveals((prev) => prev.filter((r) => r.id !== id));
     } finally {
@@ -180,6 +182,9 @@ export default function InboxPage() {
               <div className="font-medium">Nada por agora.</div>
               <div className="mt-1 text-sm text-neutral-400">
                 Quando alguem pedir entrada, aparece aqui.
+              </div>
+              <div className="mt-3 text-xs text-neutral-500">
+                Houve quem aceitasse e nunca respondesse. Foi intencional.
               </div>
             </div>
           ) : (

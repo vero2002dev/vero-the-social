@@ -16,6 +16,8 @@ export default function DiscoverPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [quality, setQuality] = useState<{ discover_bonus: number; match_bonus: number } | null>(null);
   const [qualityLogged, setQualityLogged] = useState(false);
+  const [usageCounts, setUsageCounts] = useState<{ remaining: number; limit: number } | null>(null);
+  const [plan, setPlan] = useState<string>("free");
 
   const router = useRouter();
 
@@ -29,6 +31,14 @@ export default function DiscoverPage() {
         router.push("/unlock");
         return;
       }
+      setPlan(usage.plan ?? "free");
+      if (usage.plan === "premium") {
+        await logEvent("precision_used");
+      }
+      setUsageCounts({
+        remaining: usage.discover_remaining ?? 0,
+        limit: usage.discover_limit ?? 0,
+      });
       const q = await rpcUserQuality();
       setQuality({ discover_bonus: q.discover_bonus ?? 0, match_bonus: q.match_bonus ?? 0 });
       if (!qualityLogged && (q.discover_bonus > 0 || q.match_bonus > 0)) {
@@ -49,6 +59,7 @@ export default function DiscoverPage() {
     setErr(null);
     setBusyId(id);
     try {
+      await new Promise((r) => setTimeout(r, 800));
       await rpcRequestMatch(id);
       setRows((prev) => prev.filter((r) => r.id !== id));
       await logEvent("match_request");
@@ -72,6 +83,11 @@ export default function DiscoverPage() {
             <p className="mt-2 text-sm text-neutral-400">
               Poucos perfis. Mais intencao. Menos ruido.
             </p>
+            {usageCounts && plan !== "premium" ? (
+              <p className="mt-2 text-xs text-neutral-500">
+                {usageCounts.remaining} pedidos restantes hoje
+              </p>
+            ) : null}
           </div>
 
           <button
@@ -84,7 +100,7 @@ export default function DiscoverPage() {
 
         {err && <div className="mt-4 text-sm text-red-400">{err}</div>}
 
-        {quality && (quality.discover_bonus > 0 || quality.match_bonus > 0) ? (
+        {plan !== "premium" && quality && (quality.discover_bonus > 0 || quality.match_bonus > 0) ? (
           <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-neutral-300">
             Boa dinamica esta semana. Alguns limites foram aliviados.
           </div>
@@ -98,6 +114,9 @@ export default function DiscoverPage() {
               <div className="font-medium">Nada agora.</div>
               <div className="mt-1 text-sm text-neutral-400">
                 Volta mais tarde — ou muda a intencao.
+              </div>
+              <div className="mt-3 text-xs text-neutral-500">
+                Nem todos os matches viram chat. Os bons, sim.
               </div>
               <button
                 className="mt-4 w-full rounded-2xl bg-white text-black py-2.5 font-medium"
