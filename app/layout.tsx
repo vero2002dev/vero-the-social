@@ -1,7 +1,4 @@
 import "./globals.css";
-import Link from "next/link";
-import Nav from "./components/Nav";
-
 export const metadata = {
   title: "VERO",
   description: "Rede social com verificação e menos pressão social.",
@@ -15,18 +12,7 @@ export default function RootLayout({
   return (
     <html lang="pt" className="dark">
       <body>
-        <div className="min-h-screen bg-background text-foreground">
-          <header className="border-b">
-            <div className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
-              <Link className="font-semibold text-lg" href="/">
-                VERO
-              </Link>
-              <Nav />
-            </div>
-          </header>
-
-          <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
-        </div>
+        <div className="min-h-screen bg-black text-white">{children}</div>
       </body>
     </html>
   );

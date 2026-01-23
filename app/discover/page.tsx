@@ -1,72 +1,60 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { rpcDiscover, rpcRequestMatch, type DiscoverRow } from "@/lib/rpc";
-import ProfileCard from "@/components/ProfileCard";
-import { useRouter } from "next/navigation";
-import { rpcUsage } from "@/lib/invites";
-import { setUnlockedCookie } from "@/lib/verificationCookies";
+import { useEffect, useMemo, useState } from "react";
+import AppShell from "@/components/AppShell";
+import DiscoverCard from "@/components/DiscoverCard";
+import DiscoverControls from "@/components/DiscoverControls";
+import { supabase } from "@/lib/supabaseClient";
 import { logEvent } from "@/lib/events";
-import { rpcUserQuality } from "@/lib/quality";
+import { rpcUsage } from "@/lib/invites";
+import { getMyGateState } from "@/lib/profileGate";
+import { useRouter } from "next/navigation";
+
+type DiscoverRow = {
+  id: string;
+  username: string;
+  display_name: string | null;
+  bio: string | null;
+  avatar_path: string | null;
+  intent_key: string | null;
+  intensity: number | null;
+};
 
 export default function DiscoverPage() {
-  const [rows, setRows] = useState<DiscoverRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [quality, setQuality] = useState<{ discover_bonus: number; match_bonus: number } | null>(null);
-  const [qualityLogged, setQualityLogged] = useState(false);
-  const [usageCounts, setUsageCounts] = useState<{ remaining: number; limit: number } | null>(null);
-  const [plan, setPlan] = useState<string>("free");
-
   const router = useRouter();
 
+  const [usage, setUsage] = useState<any>(null);
+  const [cards, setCards] = useState<DiscoverRow[]>([]);
+  const [idx, setIdx] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const current = useMemo(() => cards[idx] ?? null, [cards, idx]);
+
   async function load() {
-    setErr(null);
+    setMsg(null);
     setLoading(true);
     try {
-      const usage = await rpcUsage();
-      setUnlockedCookie(!!usage.unlocked);
-      if (!usage.unlocked) {
-        router.push("/unlock");
-        return;
-      }
-      setPlan(usage.plan ?? "free");
-      if (usage.plan === "premium") {
-        await logEvent("precision_used");
-      }
-      setUsageCounts({
-        remaining: usage.discover_remaining ?? 0,
-        limit: usage.discover_limit ?? 0,
-      });
-      const q = await rpcUserQuality();
-      setQuality({ discover_bonus: q.discover_bonus ?? 0, match_bonus: q.match_bonus ?? 0 });
-      if (!qualityLogged && (q.discover_bonus > 0 || q.match_bonus > 0)) {
-        setQualityLogged(true);
-        await logEvent("limits_relaxed", { reason: "high_quality_usage" });
-      }
-      const data = await rpcDiscover();
-      setRows(data);
-      await logEvent("discover_view");
+      const g = await getMyGateState();
+      if (!g.unlocked) return router.replace("/unlock");
+      if (!g.onboarded) return router.replace("/onboarding");
+
+      const u = await rpcUsage();
+      setUsage(u);
+
+      const { data, error } = await supabase.rpc("rpc_discover");
+      if (error) throw error;
+
+      const list = (data ?? []) as DiscoverRow[];
+      setCards(list);
+      setIdx(0);
+
+      await logEvent("discover_view", { count: list.length });
     } catch (e: any) {
-      setErr(e?.message ?? "Erro no discover.");
+      setMsg(e?.message ?? "Erro no discover.");
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function onRequest(id: string) {
-    setErr(null);
-    setBusyId(id);
-    try {
-      await new Promise((r) => setTimeout(r, 800));
-      await rpcRequestMatch(id);
-      setRows((prev) => prev.filter((r) => r.id !== id));
-      await logEvent("match_request");
-    } catch (e: any) {
-      setErr(e?.message ?? "Erro ao pedir match.");
-    } finally {
-      setBusyId(null);
     }
   }
 
@@ -74,75 +62,111 @@ export default function DiscoverPage() {
     load();
   }, []);
 
+  function pass() {
+    if (!current) return;
+    logEvent("discover_pass", { target: current.id });
+    setIdx((i) => i + 1);
+  }
+
+  async function request() {
+    if (!current) return;
+    setBusy(true);
+    setMsg(null);
+
+    await new Promise((r) => setTimeout(r, 800));
+
+    try {
+      const { error } = await supabase.rpc("rpc_request_match", { p_target: current.id });
+      if (error) throw error;
+
+      await logEvent("match_request", { target: current.id });
+
+      setMsg("Pedido enviado. Agora esperas.");
+      setIdx((i) => i + 1);
+    } catch (e: any) {
+      setMsg(e?.message ?? "Nao foi possivel pedir entrada.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const remaining = usage?.match_remaining;
+
   return (
-    <main className="min-h-screen bg-black text-white">
-      <div className="max-w-xl mx-auto p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Descobrir</h1>
-            <p className="mt-2 text-sm text-neutral-400">
-              Poucos perfis. Mais intencao. Menos ruido.
-            </p>
-            {usageCounts && plan !== "premium" ? (
-              <p className="mt-2 text-xs text-neutral-500">
-                {usageCounts.remaining} pedidos restantes hoje
-              </p>
-            ) : null}
-          </div>
-
-          <button
-            className="rounded-2xl border border-white/10 px-4 py-2 text-sm hover:border-white/20"
-            onClick={() => router.push("/intent")}
-          >
-            Mudar intencao
-          </button>
+    <AppShell
+      title="Descobrir"
+      right={
+        <button
+          onClick={load}
+          className="text-sm text-neutral-300 hover:text-white"
+          disabled={loading}
+        >
+          Atualizar
+        </button>
+      }
+    >
+      <div className="mb-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+        <div className="text-sm text-neutral-300">
+          Pedidos restantes hoje:{" "}
+          <span className="text-white font-medium">
+            {typeof remaining === "number" ? remaining : "—"}
+          </span>
         </div>
-
-        {err && <div className="mt-4 text-sm text-red-400">{err}</div>}
-
-        {plan !== "premium" && quality && (quality.discover_bonus > 0 || quality.match_bonus > 0) ? (
-          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-neutral-300">
-            Boa dinamica esta semana. Alguns limites foram aliviados.
-          </div>
-        ) : null}
-
-        <div className="mt-6">
-          {loading ? (
-            <div className="text-sm text-neutral-400">A carregar...</div>
-          ) : rows.length === 0 ? (
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div className="font-medium">Nada agora.</div>
-              <div className="mt-1 text-sm text-neutral-400">
-                Volta mais tarde — ou muda a intencao.
-              </div>
-              <div className="mt-3 text-xs text-neutral-500">
-                Nem todos os matches viram chat. Os bons, sim.
-              </div>
-              <button
-                className="mt-4 w-full rounded-2xl bg-white text-black py-2.5 font-medium"
-                onClick={load}
-              >
-                Tentar outra vez
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-4">
-              {rows.map((r) => (
-                <ProfileCard
-                  key={r.id}
-                  row={r}
-                  onRequest={onRequest}
-                  requesting={busyId === r.id}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        <p className="mt-8 text-xs text-neutral-500">
-          VERO e privado por design. Sem screenshots. Sem show-off.
-        </p>
+        <div className="mt-1 text-xs text-neutral-500">Poucos pedidos. Melhor escolha.</div>
       </div>
-    </main>
+
+      {loading ? (
+        <div className="text-sm text-neutral-400">A carregar...</div>
+      ) : !current ? (
+        <EmptyDiscover onReload={load} />
+      ) : (
+        <>
+          <div className="relative">
+            {cards[idx + 1] ? (
+              <div className="absolute inset-0 translate-y-2 scale-[0.98] opacity-50 pointer-events-none">
+                <DiscoverCard
+                  username={cards[idx + 1].username}
+                  displayName={cards[idx + 1].display_name}
+                  bio={cards[idx + 1].bio}
+                  intentKey={cards[idx + 1].intent_key}
+                  intensity={cards[idx + 1].intensity}
+                />
+              </div>
+            ) : null}
+
+            <DiscoverCard
+              username={current.username}
+              displayName={current.display_name}
+              bio={current.bio}
+              intentKey={current.intent_key}
+              intensity={current.intensity}
+            />
+          </div>
+
+          {msg ? <div className="mt-4 text-sm text-neutral-300">{msg}</div> : null}
+
+          <DiscoverControls onPass={pass} onRequest={request} disabled={busy} />
+
+          <div className="mt-4 text-xs text-neutral-500">O silencio tambem e uma escolha.</div>
+        </>
+      )}
+    </AppShell>
+  );
+}
+
+function EmptyDiscover({ onReload }: { onReload: () => void }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+      <div className="text-lg font-semibold">Nada por agora.</div>
+      <div className="mt-2 text-sm text-neutral-400">
+        Volta mais tarde. Ou ajusta a tua intencao.
+      </div>
+      <button
+        onClick={onReload}
+        className="mt-4 w-full rounded-2xl bg-white text-black py-3 text-sm font-medium"
+      >
+        Recarregar
+      </button>
+    </div>
   );
 }

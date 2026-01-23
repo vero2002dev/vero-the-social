@@ -6,6 +6,8 @@ import { supabase } from "@/lib/supabaseClient";
 import { requireUser } from "@/lib/auth";
 import { isBootstrapAdmin } from "@/lib/admin";
 import { setAdminCookie, setVerificationCookies } from "@/lib/verificationCookies";
+import AppShell from "@/components/AppShell";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -53,6 +55,7 @@ export default function ProfilePage() {
   const [hasShowComments, setHasShowComments] = useState(true);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const avatarBucketReady = useRef<boolean | null>(null);
+  const [isAdminUser, setIsAdminUser] = useState(false);
 
   async function ensureAvatarBucket() {
     if (avatarBucketReady.current === true) return true;
@@ -153,8 +156,10 @@ export default function ProfilePage() {
         .maybeSingle();
 
       const status = (data?.verification_status as any) ?? "pending";
+      const nextAdmin = !!data?.is_admin || isBootstrapAdmin(user.email);
       setVerificationCookies(status, true);
-      setAdminCookie(!!data?.is_admin || isBootstrapAdmin(user.email));
+      setAdminCookie(nextAdmin);
+      setIsAdminUser(nextAdmin);
 
       if (error || status !== "approved") {
         router.replace("/verify");
@@ -387,8 +392,39 @@ export default function ProfilePage() {
   const isVerified = profile?.verification_status === "approved";
 
   return (
-    <div className="grid gap-6 max-w-4xl">
-      <Card className="border-border bg-card/70">
+    <AppShell title="Eu">
+      <div className="grid gap-6">
+        <div className="grid gap-3">
+          <Link
+            href="/invite"
+            className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm"
+          >
+            Convites
+          </Link>
+          <Link
+            href="/premium"
+            className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm"
+          >
+            Premium
+          </Link>
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-left"
+          >
+            Settings
+          </button>
+          {isAdminUser ? (
+            <Link
+              href="/admin/metrics"
+              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm"
+            >
+              Admin · Metricas
+            </Link>
+          ) : null}
+        </div>
+
+        <Card className="border-border bg-card/70">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <CardTitle>Perfil</CardTitle>
@@ -523,11 +559,7 @@ export default function ProfilePage() {
             )}
           </div>
 
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setSettingsOpen(true)}>
-              Settings
-            </Button>
-          </div>
+          <div className="flex gap-2" />
         </CardContent>
       </Card>
 
@@ -609,6 +641,7 @@ export default function ProfilePage() {
       )}
 
       {msg && <div className="text-sm">{msg}</div>}
-    </div>
+      </div>
+    </AppShell>
   );
 }

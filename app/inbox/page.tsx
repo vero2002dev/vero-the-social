@@ -19,6 +19,7 @@ import {
 import { rpcUsage } from "@/lib/invites";
 import { setUnlockedCookie } from "@/lib/verificationCookies";
 import { logEvent } from "@/lib/events";
+import AppShell from "@/components/AppShell";
 import { useRouter } from "next/navigation";
 
 export default function InboxPage() {
@@ -132,84 +133,87 @@ export default function InboxPage() {
   }
 
   return (
-    <main className="min-h-screen bg-black text-white">
-      <div className="max-w-xl mx-auto p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Inbox</h1>
-            <p className="mt-2 text-sm text-neutral-400">
-              Pedidos pendentes. Poucos. Reais.
-            </p>
-          </div>
+    <AppShell
+      title="Inbox"
+      right={
+        <div className="flex gap-2">
           <button
-            className="rounded-2xl border border-white/10 px-4 py-2 text-sm hover:border-white/20"
+            className="rounded-2xl border border-white/10 px-3 py-2 text-xs hover:border-white/20"
+            onClick={() => router.push("/invite")}
+          >
+            Convites
+          </button>
+          <button
+            className="rounded-2xl border border-white/10 px-3 py-2 text-xs hover:border-white/20"
             onClick={load}
           >
             Atualizar
           </button>
         </div>
+      }
+    >
+      <p className="text-sm text-neutral-400">Pedidos pendentes. Poucos. Reais.</p>
 
-        {err && <div className="mt-4 text-sm text-red-400">{err}</div>}
+      {err && <div className="mt-4 text-sm text-red-400">{err}</div>}
 
-        <div className="mt-6">
-          <h2 className="text-lg font-semibold">Reveals</h2>
-          <p className="mt-1 text-sm text-neutral-400">
-            Pedidos de consentimento pendentes.
-          </p>
-
-          {reveals.length === 0 ? (
-            <div className="mt-3 text-sm text-neutral-500">Nada por agora.</div>
-          ) : (
-            <div className="mt-4 grid grid-cols-1 gap-4">
-              {reveals.map((r) => (
-                <RevealRequestCard
-                  key={r.id}
-                  reveal={r}
-                  onAccept={() => acceptReveal(r.id)}
-                  onReject={() => rejectReveal(r.id)}
-                  busy={busyRevealId === r.id}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="mt-6">
-          {loading ? (
-            <div className="text-sm text-neutral-400">A carregar...</div>
-          ) : matches.length === 0 ? (
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div className="font-medium">Nada por agora.</div>
-              <div className="mt-1 text-sm text-neutral-400">
-                Quando alguem pedir entrada, aparece aqui.
-              </div>
-              <div className="mt-3 text-xs text-neutral-500">
-                Houve quem aceitasse e nunca respondesse. Foi intencional.
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-4">
-              {matches.map((m) => {
-                const otherId = me ? (m.user1 === me ? m.user2 : m.user1) : m.user1;
-                return (
-                  <PendingMatchCard
-                    key={m.id}
-                    match={m}
-                    other={byId.get(otherId)}
-                    onAccept={() => accept(m.id)}
-                    onReject={() => reject(m.id)}
-                    busy={busyMatchId === m.id}
-                  />
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <p className="mt-8 text-xs text-neutral-500">
-          VERO: decisoes rapidas. Sem jogos infinitos.
+      <div className="mt-6">
+        <h2 className="text-lg font-semibold">Reveals</h2>
+        <p className="mt-1 text-sm text-neutral-400">
+          Pedidos de consentimento pendentes.
         </p>
+
+        {reveals.length === 0 ? (
+          <div className="mt-3 text-sm text-neutral-500">Nada por agora.</div>
+        ) : (
+          <div className="mt-4 grid grid-cols-1 gap-4">
+            {reveals.map((r) => (
+              <RevealRequestCard
+                key={r.id}
+                reveal={r}
+                onAccept={() => acceptReveal(r.id)}
+                onReject={() => rejectReveal(r.id)}
+                busy={busyRevealId === r.id}
+              />
+            ))}
+          </div>
+        )}
       </div>
-    </main>
+
+      <div className="mt-6">
+        {loading ? (
+          <div className="text-sm text-neutral-400">A carregar...</div>
+        ) : matches.length === 0 ? (
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <div className="font-medium">Nada por agora.</div>
+            <div className="mt-1 text-sm text-neutral-400">
+              Quando alguem pedir entrada, aparece aqui.
+            </div>
+            <div className="mt-3 text-xs text-neutral-500">
+              Houve quem aceitasse e nunca respondesse. Foi intencional.
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4">
+            {matches.map((m) => {
+              const otherId = me ? (m.user1 === me ? m.user2 : m.user1) : m.user1;
+              return (
+                <PendingMatchCard
+                  key={m.id}
+                  match={m}
+                  other={byId.get(otherId)}
+                  onAccept={() => accept(m.id)}
+                  onReject={() => reject(m.id)}
+                  busy={busyMatchId === m.id}
+                />
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <p className="mt-8 text-xs text-neutral-500">
+        VERO: decisoes rapidas. Sem jogos infinitos.
+      </p>
+    </AppShell>
   );
 }

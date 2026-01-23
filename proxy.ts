@@ -18,6 +18,7 @@ export default function proxy(request: NextRequest) {
     pathname.startsWith("/inbox") ||
     pathname.startsWith("/chat") ||
     pathname.startsWith("/chats") ||
+    pathname.startsWith("/onboarding") ||
     pathname.startsWith("/invite") ||
     pathname.startsWith("/premium") ||
     pathname.startsWith("/unlock") ||
@@ -57,6 +58,7 @@ export const config = {
     "/inbox/:path*",
     "/chat/:path*",
     "/chats/:path*",
+    "/onboarding/:path*",
     "/invite/:path*",
     "/premium/:path*",
     "/promocoes/:path*",
