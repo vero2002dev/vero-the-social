@@ -1,3 +1,5 @@
+-- 20250204_avatars_storage_owner_policies.sql
+
 drop policy if exists "avatars_read" on storage.objects;
 drop policy if exists "avatars_insert" on storage.objects;
 drop policy if exists "avatars_update" on storage.objects;

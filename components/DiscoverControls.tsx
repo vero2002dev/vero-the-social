@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/components/I18nProvider";
+
 export default function DiscoverControls({
   onPass,
   onRequest,
@@ -9,6 +11,7 @@ export default function DiscoverControls({
   onRequest: () => void;
   disabled?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div className="mt-5 grid grid-cols-2 gap-3">
       <button
@@ -16,7 +19,7 @@ export default function DiscoverControls({
         disabled={disabled}
         className="rounded-2xl border border-white/10 py-3 text-sm text-neutral-200 hover:border-white/20 disabled:opacity-60"
       >
-        Passar
+        {t("discover.pass")}
       </button>
 
       <button
@@ -24,7 +27,7 @@ export default function DiscoverControls({
         disabled={disabled}
         className="rounded-2xl bg-white text-black py-3 text-sm font-medium disabled:opacity-60"
       >
-        Pedir entrada
+        {t("discover.request")}
       </button>
     </div>
   );

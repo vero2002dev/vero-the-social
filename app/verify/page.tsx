@@ -1,194 +1,186 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import AppShell from "@/components/AppShell";
+import Toast from "@/components/Toast";
 import { supabase } from "@/lib/supabaseClient";
-import { isBootstrapAdmin } from "@/lib/admin";
-import { setAdminCookie, setVerificationCookies } from "@/lib/verificationCookies";
+import { useI18n } from "@/components/I18nProvider";
 
-type Status = "pending" | "approved" | "rejected";
+type VerReq = {
+  id: string;
+  type: "initial" | "profile_change";
+  status: "pending" | "approved" | "rejected" | "cancelled";
+  challenge_code: string;
+  created_at: string;
+};
+
+type Status = "unverified" | "pending" | "verified" | "failed";
 
 export default function VerifyPage() {
   const router = useRouter();
-  const [status, setStatus] = useState<Status>("pending");
-  const [loading, setLoading] = useState(true);
+  const { t } = useI18n();
   const [msg, setMsg] = useState<string | null>(null);
-  const [idFile, setIdFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [req, setReq] = useState<VerReq | null>(null);
   const [selfieFile, setSelfieFile] = useState<File | null>(null);
-  const [submitted, setSubmitted] = useState(false);
-  const idInputRef = useRef<HTMLInputElement | null>(null);
-  const selfieInputRef = useRef<HTMLInputElement | null>(null);
+  const [status, setStatus] = useState<Status>("pending");
+
+  const title = useMemo(() => {
+    if (!req) return t("verify.title");
+    return req.type === "profile_change" ? t("verify.reverify_title") : t("verify.title");
+  }, [req, t]);
 
   useEffect(() => {
     (async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const user = sessionData.session?.user;
-      if (!user) {
-        setVerificationCookies(null, false);
-        setAdminCookie(false);
-        router.replace("/login");
-        return;
+      try {
+        const { data: auth } = await supabase.auth.getUser();
+        if (!auth.user) return router.replace("/login");
+
+        const { data: pRow } = await supabase
+          .from("profiles")
+          .select("verification_status")
+          .eq("id", auth.user.id)
+          .maybeSingle();
+        setStatus((pRow?.verification_status as Status) ?? "unverified");
+
+        await loadLatestPending();
+      } catch (e: any) {
+        setMsg(e?.message ?? t("common.error_generic"));
       }
-
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("verification_status, id_doc_path, selfie_path, is_admin")
-        .eq("id", user.id)
-        .single();
-
-      if (error) {
-        setMsg("Erro: " + error.message);
-        setVerificationCookies("pending", true);
-        setAdminCookie(isBootstrapAdmin(user.email));
-      } else {
-        const nextStatus = (data?.verification_status as Status) ?? "pending";
-        setStatus(nextStatus);
-        setVerificationCookies(nextStatus, true);
-        const nextAdmin = !!data?.is_admin || isBootstrapAdmin(user.email);
-        setAdminCookie(nextAdmin);
-        setSubmitted(!!data?.id_doc_path && !!data?.selfie_path);
-      }
-
-      setLoading(false);
     })();
-  }, [router]);
+  }, [router, t]);
 
   useEffect(() => {
-    if (status === "approved") router.replace("/feed");
+    if (status === "verified") router.replace("/feed");
   }, [router, status]);
 
-  async function upload() {
+  async function loadLatestPending() {
     setMsg(null);
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth.user?.id;
+    if (!uid) return;
 
-    if (!idFile || !selfieFile) {
-      setMsg("Escolhe os 2 ficheiros (ID + selfie).");
+    const { data, error } = await supabase
+      .from("verification_requests")
+      .select("id,type,status,challenge_code,created_at")
+      .eq("user_id", uid)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      setMsg(error.message);
       return;
     }
 
-    setLoading(true);
-
-    const { data: sessionData } = await supabase.auth.getSession();
-    const user = sessionData.session?.user;
-    if (!user) {
-      setMsg("Sem sessão.");
-      setLoading(false);
-      return;
-    }
-
-    const idPath = `${user.id}/${Date.now()}_id_${idFile.name}`;
-    const selfiePath = `${user.id}/${Date.now()}_selfie_${selfieFile.name}`;
-
-    const up1 = await supabase.storage
-      .from("verification_ids")
-      .upload(idPath, idFile, { upsert: true });
-
-    if (up1.error) {
-      setMsg("Erro upload ID: " + up1.error.message);
-      setLoading(false);
-      return;
-    }
-
-    const up2 = await supabase.storage
-      .from("verification_selfies")
-      .upload(selfiePath, selfieFile, { upsert: true });
-
-    if (up2.error) {
-      setMsg("Erro upload selfie: " + up2.error.message);
-      setLoading(false);
-      return;
-    }
-
-    const { error: updErr } = await supabase
-      .from("profiles")
-      .update({
-        id_doc_path: idPath,
-        selfie_path: selfiePath,
-        verification_status: "pending",
-      })
-      .eq("id", user.id);
-
-    if (updErr) setMsg("Erro atualizar perfil: " + updErr.message);
-    else {
-      setMsg("Enviado ✅ Agora aguardas aprovação.");
-      setStatus("pending");
-      setVerificationCookies("pending", true);
-      setSubmitted(true);
-    }
-
-    setLoading(false);
+    setReq((data as VerReq) ?? null);
   }
 
-  if (loading) return <main style={{ padding: 24 }}>A carregar...</main>;
+  async function uploadSelfie() {
+    if (!req || req.status !== "pending") return setMsg(t("verify.need_request"));
+    if (!selfieFile) return setMsg(t("verify.pick_selfie"));
 
-  if (status === "approved") return <main style={{ padding: 24 }}>A redirecionar...</main>;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth.user?.id;
+      if (!uid) throw new Error(t("verify.no_session"));
 
-  const statusLabel = status === "pending" ? "pending verification" : status;
+      const path = `user/${uid}/verify/${req.id}.jpg`;
+
+      const { error: upErr } = await supabase.storage
+        .from("private_media")
+        .upload(path, selfieFile, {
+          upsert: true,
+          contentType: selfieFile.type || "image/jpeg",
+        });
+
+      if (upErr) throw upErr;
+
+      const { error: insErr } = await supabase.from("profile_photos").insert({
+        user_id: uid,
+        kind: "selfie_verify",
+        storage_path: path,
+        status: "pending",
+        meta: { request_id: req.id, source: "camera" },
+      });
+
+      if (insErr) throw insErr;
+
+      setMsg(t("verify.sent"));
+      setSelfieFile(null);
+      setStatus("pending");
+    } catch (e: any) {
+      setMsg(e?.message ?? t("verify.error.generic", { msg: "" }));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
-    <main style={{ padding: 24, maxWidth: 520 }}>
-      <h1 style={{ fontSize: 28, marginBottom: 8 }}>Verificação</h1>
-      <p>Status atual: <b>{statusLabel}</b></p>
+    <AppShell
+      title={title}
+      right={
+        <button
+          onClick={() => router.back()}
+          className="text-sm text-neutral-300 hover:text-white"
+        >
+          {t("common.close")}
+        </button>
+      }
+    >
+      <Toast text={msg} onClose={() => setMsg(null)} />
 
-      {status === "pending" && submitted ? (
-        <div style={{ marginTop: 12, padding: 12, borderRadius: 10, border: "1px solid #e5e7eb" }}>
-          <p style={{ fontWeight: 600 }}>Pending approval</p>
-          <p style={{ marginTop: 8 }}>
-            Recebemos os teus documentos. Vamos analisar e avisar quando estiver aprovado.
-          </p>
+      {!req ? (
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+          <div className="text-lg font-semibold">{t("verify.need_request_title")}</div>
+          <div className="mt-2 text-sm text-neutral-400">{t("verify.need_request_body")}</div>
+          <button
+            onClick={() => router.replace("/profile")}
+            className="mt-4 w-full rounded-2xl border border-white/10 bg-black/20 py-3 text-sm text-neutral-200"
+          >
+            {t("verify.back_to_profile")}
+          </button>
         </div>
       ) : (
-        <>
-          <p style={{ marginTop: 12 }}>
-            Envia um documento de identificação + uma selfie. (V1 manual)
-          </p>
-
-          <div style={{ marginTop: 12, display: "grid", gap: 10 }}>
-            <label>
-              Documento (ID):
-              <input
-                ref={idInputRef}
-                type="file"
-                accept="image/*"
-                onChange={(e) => setIdFile(e.target.files?.[0] ?? null)}
-                style={{ display: "none" }}
-              />
-              <div style={{ marginTop: 6, display: "flex", gap: 8, alignItems: "center" }}>
-                <button type="button" onClick={() => idInputRef.current?.click()}>
-                  Escolher ficheiro
-                </button>
-                <span style={{ fontSize: 12, opacity: 0.7 }}>
-                  {idFile ? idFile.name : "Nenhum ficheiro"}
-                </span>
-              </div>
-            </label>
-
-            <label>
-              Selfie:
-              <input
-                ref={selfieInputRef}
-                type="file"
-                accept="image/*"
-                onChange={(e) => setSelfieFile(e.target.files?.[0] ?? null)}
-                style={{ display: "none" }}
-              />
-              <div style={{ marginTop: 6, display: "flex", gap: 8, alignItems: "center" }}>
-                <button type="button" onClick={() => selfieInputRef.current?.click()}>
-                  Escolher ficheiro
-                </button>
-                <span style={{ fontSize: 12, opacity: 0.7 }}>
-                  {selfieFile ? selfieFile.name : "Nenhum ficheiro"}
-                </span>
-              </div>
-            </label>
-
-            <button onClick={upload} style={{ padding: 10, borderRadius: 10 }}>
-              Enviar para verificação
-            </button>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+          <div className="text-sm text-neutral-400">{t("verify.code_label")}</div>
+          <div className="mt-1 text-3xl font-semibold tracking-widest">
+            {req.challenge_code}
           </div>
-        </>
-      )}
 
-      {msg && <p style={{ marginTop: 12 }}>{msg}</p>}
-    </main>
+          <div className="mt-3 text-sm text-neutral-300">
+            {t("verify.code_hint")}
+          </div>
+
+          <div className="mt-4">
+            <label className="text-xs text-neutral-500">{t("verify.selfie_label")}</label>
+            <input
+              type="file"
+              accept="image/*"
+              capture="user"
+              onChange={(e) => setSelfieFile(e.target.files?.[0] ?? null)}
+              className="mt-2 block w-full text-sm text-neutral-200"
+              disabled={busy}
+            />
+          </div>
+
+          <button
+            onClick={uploadSelfie}
+            disabled={busy || !selfieFile}
+            className="mt-4 w-full rounded-2xl bg-white text-black py-3 text-sm font-medium disabled:opacity-60"
+          >
+            {t("verify.submit")}
+          </button>
+
+          <div className="mt-3 text-xs text-neutral-500">
+            {t("verify.sent_hint")}
+          </div>
+        </div>
+      )}
+    </AppShell>
   );
 }

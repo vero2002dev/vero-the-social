@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/components/I18nProvider";
+
 export default function DiscoverCard({
   displayName,
   username,
@@ -15,6 +17,7 @@ export default function DiscoverCard({
   intensity?: number | null;
   onTap?: () => void;
 }) {
+  const { t } = useI18n();
   const name = displayName || username;
 
   return (
@@ -32,9 +35,9 @@ export default function DiscoverCard({
       </div>
 
       <div className="mt-6">
-        <div className="text-xs text-neutral-500">INTENCAO</div>
+        <div className="text-xs text-neutral-500">{t("discover.card.intent_label")}</div>
         <div className="mt-1 flex items-center gap-2">
-          <span className="text-sm font-medium">{formatIntent(intentKey)}</span>
+          <span className="text-sm font-medium">{formatIntent(t, intentKey)}</span>
           {typeof intensity === "number" ? (
             <span className="text-xs text-neutral-400">· {renderDots(intensity)}</span>
           ) : null}
@@ -42,13 +45,13 @@ export default function DiscoverCard({
       </div>
 
       <div className="mt-6">
-        <div className="text-xs text-neutral-500">LINHA</div>
+        <div className="text-xs text-neutral-500">{t("discover.card.line_label")}</div>
         <div className="mt-1 text-sm text-neutral-200 leading-relaxed">
-          {bio?.trim() ? bio : <span className="text-neutral-500">Sem bio. So presenca.</span>}
+          {bio?.trim() ? bio : <span className="text-neutral-500">{t("discover.card.empty_bio")}</span>}
         </div>
       </div>
 
-      <div className="mt-6 text-xs text-neutral-500">Se pedires entrada, tens 48h.</div>
+      <div className="mt-6 text-xs text-neutral-500">{t("discover.card.request_rule")}</div>
     </div>
   );
 }
@@ -58,20 +61,20 @@ function renderDots(n: number) {
   return "●".repeat(clamped) + "○".repeat(5 - clamped);
 }
 
-function formatIntent(k?: string | null) {
+function formatIntent(t: (key: string) => string, k?: string | null) {
   switch (k) {
     case "curiosity":
-      return "Curiosidade";
+      return t("intent.curiosity");
     case "connection":
-      return "Conexao";
+      return t("intent.connection");
     case "desire":
-      return "Desejo";
+      return t("intent.desire");
     case "private":
-      return "Privado";
+      return t("intent.private");
     case "casual":
-      return "Casual";
+      return t("intent.casual");
     case "no_labels":
-      return "Sem rotulos";
+      return t("intent.no_labels");
     default:
       return "—";
   }

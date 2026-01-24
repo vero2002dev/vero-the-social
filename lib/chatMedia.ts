@@ -7,7 +7,7 @@ export async function uploadChatImage(params: {
 }) {
   const { data: auth } = await supabase.auth.getUser();
   const me = auth.user?.id;
-  if (!me) throw new Error("Sessao invalida.");
+  if (!me) throw new Error("common.session_invalid");
 
   const ext = params.file.name.split(".").pop()?.toLowerCase() || "jpg";
   const path = `user/${me}/convo/${params.conversationId}/${params.messageId}.${ext}`;

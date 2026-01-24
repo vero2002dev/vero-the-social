@@ -6,6 +6,7 @@ import { rpcUsage } from "@/lib/invites";
 import { useRouter } from "next/navigation";
 import { setUnlockedCookie } from "@/lib/verificationCookies";
 import { logEvent } from "@/lib/events";
+import { getMyGateState } from "@/lib/profileGate";
 
 export default function IntentPage() {
   const router = useRouter();
@@ -13,6 +14,11 @@ export default function IntentPage() {
   useEffect(() => {
     (async () => {
       try {
+        const gate = await getMyGateState();
+        if (!gate.legalAccepted) {
+          router.push("/legal/terms");
+          return;
+        }
         const usage = await rpcUsage();
         setUnlockedCookie(!!usage.unlocked);
         if (!usage.unlocked) {

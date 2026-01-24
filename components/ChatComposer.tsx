@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useI18n } from "@/components/I18nProvider";
 
 export default function ChatComposer({
   onSend,
@@ -13,6 +14,7 @@ export default function ChatComposer({
 }) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const { t } = useI18n();
 
   async function submit() {
     const t = text.trim();
@@ -52,7 +54,7 @@ export default function ChatComposer({
         </button>
       </div>
       <p className="mt-2 text-xs text-neutral-500">
-        Dica: perguntas simples ganham. Sem show-off.
+        {t("chat.composer.tip")}
       </p>
     </div>
   );

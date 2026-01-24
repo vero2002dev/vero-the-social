@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { resolveI18nError } from "@/lib/i18n/resolveError";
+import { useI18n } from "@/components/I18nProvider";
 import { requireUser } from "@/lib/auth";
 import { isBootstrapAdmin } from "@/lib/admin";
 import { setAdminCookie, setVerificationCookies } from "@/lib/verificationCookies";
@@ -28,6 +30,7 @@ export default function FeedPage() {
   const [previews, setPreviews] = useState<string[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const { t } = useI18n();
   const [mediaOpen, setMediaOpen] = useState(false);
   const mediaMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -46,7 +49,13 @@ export default function FeedPage() {
 
   async function load() {
     setMsg(null);
-    const user = await requireUser();
+    let user;
+    try {
+      user = await requireUser();
+    } catch (e: any) {
+      setMsg(resolveI18nError(t, e, t("common.session_invalid")));
+      return;
+    }
 
     // Buscar posts
     const { data: rawPosts, error } = await supabase
@@ -55,7 +64,7 @@ export default function FeedPage() {
       .order("created_at", { ascending: false })
       .limit(50);
 
-    if (error) return setMsg("Erro a carregar feed: " + error.message);
+    if (error) return setMsg(t("feed.error.load", { msg: error.message }));
 
     const postIds = (rawPosts ?? []).map((p) => p.id);
 
@@ -66,7 +75,7 @@ export default function FeedPage() {
       .select("id, username")
       .in("id", userIds);
 
-    if (pErr) return setMsg("Erro perfis: " + pErr.message);
+    if (pErr) return setMsg(t("feed.error.profiles", { msg: pErr.message }));
 
     // Buscar likes (contagem) e se eu dei like
     const { data: likes, error: lErr } = await supabase
@@ -75,7 +84,7 @@ export default function FeedPage() {
       .in("post_id", postIds)
       .is("liked_id", null);
 
-    if (lErr) return setMsg("Erro likes: " + lErr.message);
+    if (lErr) return setMsg(t("feed.error.likes", { msg: lErr.message }));
 
     const profileMap = new Map<string, any>();
     (profiles ?? []).forEach((pr) => profileMap.set(pr.id, pr));
@@ -120,11 +129,11 @@ export default function FeedPage() {
         .eq("id", user.id)
         .maybeSingle();
 
-      const status = (data?.verification_status as any) ?? "pending";
+      const status = (data?.verification_status as any) ?? "unverified";
       setVerificationCookies(status, true);
       setAdminCookie(!!data?.is_admin || isBootstrapAdmin(user.email));
 
-      if (error || status !== "approved") {
+      if (error || status !== "verified") {
         router.replace("/verify");
         return;
       }
@@ -165,7 +174,7 @@ export default function FeedPage() {
       const content = text.trim();
       if (!content) {
         setLoading(false);
-        return setMsg("Escreve algo primeiro.");
+        return setMsg(t("feed.error.empty"));
       }
 
       const { error } = await supabase.from("posts").insert({
@@ -178,7 +187,7 @@ export default function FeedPage() {
       setText("");
       await load();
     } catch (e: any) {
-      setMsg(e.message ?? "Erro ao criar post.");
+      setMsg(resolveI18nError(t, e, t("feed.error.create")));
     } finally {
       setLoading(false);
     }
@@ -186,7 +195,13 @@ export default function FeedPage() {
 
   async function toggleLike(post: FeedPost) {
     setMsg(null);
-    const user = await requireUser();
+    let user;
+    try {
+      user = await requireUser();
+    } catch (e: any) {
+      setMsg(resolveI18nError(t, e, t("common.session_invalid")));
+      return;
+    }
 
     if (post.i_liked) {
       const { error } = await supabase
@@ -194,13 +209,13 @@ export default function FeedPage() {
         .delete()
         .eq("post_id", post.id)
         .eq("liker_id", user.id);
-      if (error) return setMsg("Erro a tirar like: " + error.message);
+      if (error) return setMsg(resolveI18nError(t, error, t("feed.error.unlike", { msg: error.message })));
     } else {
       const { error } = await supabase.from("likes").insert({
         post_id: post.id,
         liker_id: user.id,
       });
-      if (error) return setMsg("Erro a dar like: " + error.message);
+      if (error) return setMsg(resolveI18nError(t, error, t("feed.error.like", { msg: error.message })));
     }
 
     await load();
@@ -211,8 +226,8 @@ export default function FeedPage() {
       <div className="rounded-2xl border border-border bg-card/60 p-5 shadow-[0_10px_40px_rgba(0,0,0,0.35)]">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Agora</div>
-            <div className="text-2xl font-semibold">Feed</div>
+            <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{t("feed.kicker")}</div>
+            <div className="text-2xl font-semibold">{t("feed.title")}</div>
           </div>
           <div className="text-xs text-muted-foreground">VERO</div>
         </div>
@@ -220,12 +235,12 @@ export default function FeedPage() {
           <Input
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Escreve algo…"
+            placeholder={t("feed.placeholder")}
             className="h-11"
           />
           <div className="flex items-center gap-2">
             <Button onClick={createPost} disabled={loading} className="min-w-28">
-              {loading ? "A publicar..." : "Publicar"}
+              {loading ? t("feed.publishing") : t("feed.publish")}
             </Button>
             <div className="relative" ref={mediaMenuRef}>
               <Button
@@ -249,7 +264,7 @@ export default function FeedPage() {
                       className="hidden"
                     />
                     <Button type="button" variant="ghost" className="w-full justify-start">
-                      Upload de foto
+                      {t("feed.upload_photo")}
                     </Button>
                   </label>
                   <label className="block">
@@ -264,7 +279,7 @@ export default function FeedPage() {
                       className="hidden"
                     />
                     <Button type="button" variant="ghost" className="w-full justify-start">
-                      Upload de video
+                      {t("feed.upload_video")}
                     </Button>
                   </label>
                   <Button
@@ -273,25 +288,25 @@ export default function FeedPage() {
                     className="w-full justify-start"
                     onClick={() => setMediaOpen(false)}
                   >
-                    Fechar
+                    {t("feed.close")}
                   </Button>
                 </div>
               )}
             </div>
-            <div className="ml-auto text-xs text-muted-foreground">Pressao zero. Publica leve.</div>
+            <div className="ml-auto text-xs text-muted-foreground">{t("feed.cta_hint")}</div>
           </div>
         </div>
       </div>
 
       {previews.length > 0 && (
         <div className="grid gap-2 rounded-2xl border border-border bg-card/60 p-4">
-          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Previews</div>
+          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{t("feed.previews")}</div>
           <div className="flex flex-wrap gap-3">
             {previews.map((url, idx) => (
               <div key={url} className="relative">
                 <img
                   src={url}
-                  alt="preview"
+                  alt={t("feed.preview_alt")}
                   className="h-28 w-28 rounded-lg object-cover"
                 />
                 <button
@@ -324,9 +339,9 @@ export default function FeedPage() {
 
                 <div className="flex items-center gap-3 pt-2">
                   <Button variant={p.i_liked ? "default" : "outline"} onClick={() => toggleLike(p)}>
-                    {p.i_liked ? "Revelado" : "Revelar"}
+                    {p.i_liked ? t("feed.revealed") : t("feed.reveal")}
                   </Button>
-                  <div className="text-sm text-muted-foreground">Revelacoes sao privadas.</div>
+                  <div className="text-sm text-muted-foreground">{t("feed.reveals_private")}</div>
                 </div>
               </CardContent>
             </Card>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { RevealRow } from "@/lib/reveals";
 import { fetchProfilesMini } from "@/lib/inbox";
 import { getSignedAvatarUrl } from "@/lib/avatar";
+import { useI18n } from "@/components/I18nProvider";
 
 export default function RevealRequestCard({
   reveal,
@@ -18,6 +19,7 @@ export default function RevealRequestCard({
 }) {
   const [name, setName] = useState("Utilizador");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const { t } = useI18n();
 
   useEffect(() => {
     let alive = true;
@@ -41,7 +43,8 @@ export default function RevealRequestCard({
     };
   }, [reveal.from_user]);
 
-  const kindLabel = reveal.kind === "media" ? "Media (imagens)" : "Perfil";
+  const kindLabel =
+    reveal.kind === "media" ? t("inbox.reveal_media") : t("inbox.reveal_profile");
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -57,12 +60,14 @@ export default function RevealRequestCard({
           <div className="flex items-center justify-between gap-3">
             <div className="font-medium truncate">{name}</div>
             <div className="text-xs text-neutral-500">
-              expira: {new Date(reveal.expires_at).toLocaleString()}
+              {t("common.expires_in", {
+                time: new Date(reveal.expires_at).toLocaleString(),
+              })}
             </div>
           </div>
 
           <div className="mt-1 text-sm text-neutral-300">
-            Pedido de reveal: <span className="text-white">{kindLabel}</span>
+            {t("inbox.reveal_request", { kind: kindLabel })}
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-3">
@@ -71,19 +76,19 @@ export default function RevealRequestCard({
               disabled={busy}
               className="rounded-2xl border border-white/10 py-2.5 text-sm hover:border-white/20 disabled:opacity-60"
             >
-              Fechar
+              {t("inbox.close")}
             </button>
             <button
               onClick={onAccept}
               disabled={busy}
               className="rounded-2xl bg-white text-black py-2.5 text-sm font-medium disabled:opacity-60"
             >
-              {busy ? "…" : "Abrir"}
+              {busy ? "…" : t("inbox.open")}
             </button>
           </div>
 
           <p className="mt-2 text-xs text-neutral-500">
-            Consentimento explicito. Sem pressao.
+            {t("inbox.reveal_consent")}
           </p>
         </div>
       </div>

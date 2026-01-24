@@ -4,11 +4,16 @@ import { useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/AppShell";
 import DiscoverCard from "@/components/DiscoverCard";
 import DiscoverControls from "@/components/DiscoverControls";
+import Skeleton from "@/components/Skeleton";
+import Toast from "@/components/Toast";
+import { useSwipe } from "@/components/useSwipe";
 import { supabase } from "@/lib/supabaseClient";
 import { logEvent } from "@/lib/events";
 import { rpcUsage } from "@/lib/invites";
 import { getMyGateState } from "@/lib/profileGate";
 import { useRouter } from "next/navigation";
+import { haptic } from "@/lib/haptics";
+import { useI18n } from "@/components/I18nProvider";
 
 type DiscoverRow = {
   id: string;
@@ -22,6 +27,7 @@ type DiscoverRow = {
 
 export default function DiscoverPage() {
   const router = useRouter();
+  const { t } = useI18n();
 
   const [usage, setUsage] = useState<any>(null);
   const [cards, setCards] = useState<DiscoverRow[]>([]);
@@ -37,6 +43,7 @@ export default function DiscoverPage() {
     setLoading(true);
     try {
       const g = await getMyGateState();
+      if (!g.legalAccepted) return router.replace("/legal/terms");
       if (!g.unlocked) return router.replace("/unlock");
       if (!g.onboarded) return router.replace("/onboarding");
 
@@ -52,7 +59,7 @@ export default function DiscoverPage() {
 
       await logEvent("discover_view", { count: list.length });
     } catch (e: any) {
-      setMsg(e?.message ?? "Erro no discover.");
+      setMsg(e?.message ?? t("discover.error"));
     } finally {
       setLoading(false);
     }
@@ -64,6 +71,7 @@ export default function DiscoverPage() {
 
   function pass() {
     if (!current) return;
+    haptic(10);
     logEvent("discover_pass", { target: current.id });
     setIdx((i) => i + 1);
   }
@@ -76,52 +84,88 @@ export default function DiscoverPage() {
     await new Promise((r) => setTimeout(r, 800));
 
     try {
+      haptic(25);
       const { error } = await supabase.rpc("rpc_request_match", { p_target: current.id });
       if (error) throw error;
 
       await logEvent("match_request", { target: current.id });
 
-      setMsg("Pedido enviado. Agora esperas.");
+      setMsg(t("discover.request_sent"));
       setIdx((i) => i + 1);
     } catch (e: any) {
-      setMsg(e?.message ?? "Nao foi possivel pedir entrada.");
+      setMsg(e?.message ?? t("discover.request_fail"));
     } finally {
       setBusy(false);
     }
   }
 
   const remaining = usage?.match_remaining;
+  const swipe = useSwipe({
+    onLeft: pass,
+    onRight: request,
+    threshold: 70,
+  });
 
   return (
     <AppShell
-      title="Descobrir"
+      title={t("discover.title")}
       right={
-        <button
-          onClick={load}
-          className="text-sm text-neutral-300 hover:text-white"
-          disabled={loading}
-        >
-          Atualizar
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => router.push("/search")}
+            className="text-sm text-neutral-300 hover:text-white"
+          >
+            {t("common.search")}
+          </button>
+          <button
+            onClick={load}
+            className="text-sm text-neutral-300 hover:text-white"
+            disabled={loading}
+          >
+            {t("common.update")}
+          </button>
+        </div>
       }
     >
       <div className="mb-4 rounded-2xl border border-white/10 bg-white/5 p-4">
         <div className="text-sm text-neutral-300">
-          Pedidos restantes hoje:{" "}
+          {t("discover.remaining")}:{" "}
           <span className="text-white font-medium">
             {typeof remaining === "number" ? remaining : "—"}
           </span>
         </div>
-        <div className="mt-1 text-xs text-neutral-500">Poucos pedidos. Melhor escolha.</div>
+        <div className="mt-1 text-xs text-neutral-500">
+          {t("discover.remaining_hint")}
+        </div>
       </div>
 
       {loading ? (
-        <div className="text-sm text-neutral-400">A carregar...</div>
+        <div className="space-y-3">
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+            <Skeleton h={22} />
+            <div className="mt-3">
+              <Skeleton h={14} />
+            </div>
+            <div className="mt-6">
+              <Skeleton h={12} />
+            </div>
+            <div className="mt-2">
+              <Skeleton h={18} />
+            </div>
+            <div className="mt-6">
+              <Skeleton h={90} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Skeleton h={44} />
+            <Skeleton h={44} />
+          </div>
+        </div>
       ) : !current ? (
         <EmptyDiscover onReload={load} />
       ) : (
         <>
-          <div className="relative">
+          <div className="relative" {...swipe}>
             {cards[idx + 1] ? (
               <div className="absolute inset-0 translate-y-2 scale-[0.98] opacity-50 pointer-events-none">
                 <DiscoverCard
@@ -147,25 +191,28 @@ export default function DiscoverPage() {
 
           <DiscoverControls onPass={pass} onRequest={request} disabled={busy} />
 
-          <div className="mt-4 text-xs text-neutral-500">O silencio tambem e uma escolha.</div>
+          <div className="mt-4 text-xs text-neutral-500">{t("tone.silence_choice")}</div>
         </>
       )}
+
+      <Toast text={msg} onClose={() => setMsg(null)} />
     </AppShell>
   );
 }
 
 function EmptyDiscover({ onReload }: { onReload: () => void }) {
+  const { t } = useI18n();
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-      <div className="text-lg font-semibold">Nada por agora.</div>
+      <div className="text-lg font-semibold">{t("discover.empty.title")}</div>
       <div className="mt-2 text-sm text-neutral-400">
-        Volta mais tarde. Ou ajusta a tua intencao.
+        {t("discover.empty.subtitle")}
       </div>
       <button
         onClick={onReload}
         className="mt-4 w-full rounded-2xl bg-white text-black py-3 text-sm font-medium"
       >
-        Recarregar
+        {t("common.update")}
       </button>
     </div>
   );

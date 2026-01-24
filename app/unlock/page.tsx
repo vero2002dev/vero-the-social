@@ -5,12 +5,14 @@ import { rpcClaimInvite, rpcUsage } from "@/lib/invites";
 import { useRouter } from "next/navigation";
 import { setUnlockedCookie } from "@/lib/verificationCookies";
 import { logEvent } from "@/lib/events";
+import { useI18n } from "@/components/I18nProvider";
 
 export default function UnlockPage() {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const router = useRouter();
+  const { t } = useI18n();
 
   useEffect(() => {
     (async () => {
@@ -36,7 +38,7 @@ export default function UnlockPage() {
       setUnlockedCookie(true);
       router.push("/intent");
     } catch (e: any) {
-      setErr(e?.message ?? "Codigo invalido.");
+      setErr(e?.message ?? t("unlock.invalid"));
     } finally {
       setLoading(false);
     }
@@ -45,21 +47,19 @@ export default function UnlockPage() {
   return (
     <main className="min-h-screen bg-black text-white flex items-start justify-center">
       <div className="w-full max-w-md p-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Entrar no VERO</h1>
-        <p className="mt-2 text-sm text-neutral-400">
-          VERO e por convite. Introduz o teu codigo.
+        <h1 className="text-2xl font-semibold tracking-tight">{t("unlock.title")}</h1>
+        <p className="mt-2 text-sm text-neutral-400">{t("unlock.subtitle")}</p>
+        <p className="mt-2 text-xs text-neutral-500">
+          {t("tone.rules_felt")}
         </p>
         <p className="mt-2 text-xs text-neutral-500">
-          Algumas regras nao sao ditas. Sao sentidas.
-        </p>
-        <p className="mt-2 text-xs text-neutral-500">
-          Algumas conversas aqui comecaram com uma frase.
+          {t("tone.legend_phrase")}
         </p>
 
         <input
           value={code}
           onChange={(e) => setCode(e.target.value)}
-          placeholder="Codigo"
+          placeholder={t("unlock.code_placeholder")}
           className="mt-6 w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3 text-sm outline-none focus:border-white/30"
         />
 
@@ -70,11 +70,11 @@ export default function UnlockPage() {
           disabled={loading}
           className="mt-4 w-full rounded-2xl bg-white text-black py-3 font-medium disabled:opacity-60"
         >
-          {loading ? "A validar..." : "Desbloquear"}
+          {loading ? t("common.validating") : t("unlock.cta")}
         </button>
 
         <p className="mt-3 text-xs text-neutral-500">
-          Nao tens convite? Pede a alguem. E intencional.
+          {t("tone.invite_intentional")}
         </p>
       </div>
     </main>

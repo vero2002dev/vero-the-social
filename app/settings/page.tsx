@@ -1,105 +1,166 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import AppShell from "@/components/AppShell";
+import ProfileTile from "@/components/ProfileTile";
+import Toast from "@/components/Toast";
 import { supabase } from "@/lib/supabaseClient";
-import { requireUser } from "@/lib/auth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-
-type ProfileRow = {
-  dm_privacy: "all" | "matches";
-};
+import { useRouter } from "next/navigation";
+import { getMyGateState } from "@/lib/profileGate";
+import { useI18n } from "@/components/I18nProvider";
 
 export default function SettingsPage() {
-  const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const router = useRouter();
+  const { t } = useI18n();
   const [msg, setMsg] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  async function load() {
-    setMsg(null);
-    const user = await requireUser();
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("dm_privacy")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (error) {
-      if (String(error.message).includes("dm_privacy")) {
-        setProfile({ dm_privacy: "matches" });
-        return;
-      }
-      setMsg("Erro a carregar settings: " + error.message);
-      return;
-    }
-
-    setProfile((data as ProfileRow) ?? { dm_privacy: "matches" });
-  }
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    load().catch((e) => setMsg(e.message));
-  }, []);
-
-  async function updateDmPrivacy(next: "all" | "matches") {
-    if (!profile) return;
-    if (profile.dm_privacy === next) return;
-    const prev = profile.dm_privacy;
-    setProfile({ ...profile, dm_privacy: next });
-    setLoading(true);
-    try {
-      const user = await requireUser();
-      const { error } = await supabase
-        .from("profiles")
-        .update({ dm_privacy: next })
-        .eq("id", user.id);
-      if (error) {
-        setMsg("Erro: " + error.message);
-        setProfile({ ...profile, dm_privacy: prev });
+    (async () => {
+      try {
+        const g = await getMyGateState();
+        if (!g.legalAccepted) return router.replace("/legal/terms");
+        if (!g.unlocked) return router.replace("/unlock");
+        if (!g.onboarded) return router.replace("/onboarding");
+      } catch {
+        router.replace("/login");
       }
+    })();
+  }, [router]);
+
+  async function exportData() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const { data, error } = await supabase.rpc("rpc_export_my_data");
+      if (error) throw error;
+
+      const blob = new Blob([JSON.stringify(data ?? {}, null, 2)], {
+        type: "application/json",
+      });
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `vero-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      setMsg(t("settings.export.done"));
+    } catch (e: any) {
+      setMsg(e?.message ?? t("settings.export.fail"));
     } finally {
-      setLoading(false);
+      setBusy(false);
+    }
+  }
+
+  async function deleteAccount() {
+    const ok = confirm(t("settings.delete.confirm"));
+    if (!ok) return;
+
+    setBusy(true);
+    setMsg(null);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) throw new Error(t("settings.session_invalid"));
+
+      const res = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(json?.error || t("settings.delete.fail"));
+      }
+
+      await supabase.auth.signOut();
+      router.replace("/signup");
+    } catch (e: any) {
+      setMsg(e?.message ?? t("settings.delete.fail"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function logout() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      await supabase.auth.signOut();
+      router.replace("/login");
+    } finally {
+      setBusy(false);
     }
   }
 
   return (
-    <main className="grid gap-6 max-w-3xl">
-      <Card className="border-border bg-card/70">
-        <CardHeader>
-          <CardTitle>Settings</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <div className="grid gap-2">
-            <Label>Private Space</Label>
-            <div className="text-sm opacity-70">Quem te pode contactar em privado.</div>
-            <div className="flex gap-2">
-              <Button
-                variant={profile?.dm_privacy === "all" ? "secondary" : "outline"}
-                onClick={() => updateDmPrivacy("all")}
-                disabled={loading}
-              >
-                Todos
-              </Button>
-              <Button
-                variant={profile?.dm_privacy === "matches" ? "secondary" : "outline"}
-                onClick={() => updateDmPrivacy("matches")}
-                disabled={loading}
-              >
-                Apenas matches
-              </Button>
+    <AppShell
+      title={t("settings.title")}
+      right={
+        <button
+          onClick={() => router.back()}
+          className="text-sm text-neutral-300 hover:text-white"
+        >
+          {t("common.close")}
+        </button>
+      }
+    >
+      <Toast text={msg} onClose={() => setMsg(null)} />
+
+      <div className="grid gap-3">
+        <ProfileTile
+          title={t("settings.language")}
+          subtitle={t("settings.language_sub")}
+          href="/settings/language"
+        />
+        <ProfileTile
+          title={t("settings.blocks")}
+          subtitle={t("settings.blocks_sub")}
+          href="/settings/blocks"
+        />
+        <ProfileTile
+          title={t("settings.legal")}
+          subtitle={t("settings.legal_sub")}
+          href="/legal"
+        />
+      </div>
+
+      <div className="mt-6">
+        <div className="text-xs text-neutral-500 mb-2">{t("settings.data")}</div>
+        <div className="grid gap-3">
+          <ProfileTile
+            title={t("settings.export")}
+            subtitle={t("settings.export_sub")}
+            onClick={busy ? undefined : exportData}
+          />
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <div className="text-xs text-neutral-500 mb-2">{t("settings.account")}</div>
+        <div className="grid gap-3">
+          <ProfileTile
+            title={t("settings.logout")}
+            subtitle={t("settings.logout_sub")}
+            onClick={busy ? undefined : logout}
+          />
+          <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4">
+            <div className="font-medium text-red-200">{t("settings.danger")}</div>
+            <div className="mt-1 text-sm text-red-200/70">
+              {t("settings.delete_irreversible")}
             </div>
+            <button
+              onClick={busy ? undefined : deleteAccount}
+              className="mt-4 w-full rounded-2xl bg-red-500 text-white py-3 text-sm font-medium disabled:opacity-60"
+              disabled={busy}
+            >
+              {t("settings.delete")}
+            </button>
           </div>
-
-          <div className="flex gap-2">
-            <Link href="/profile" className="text-sm underline">
-              Ir para Perfil
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-
-      {msg && <div className="text-sm">{msg}</div>}
-    </main>
+        </div>
+      </div>
+    </AppShell>
   );
 }

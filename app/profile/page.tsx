@@ -12,6 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/components/I18nProvider";
+import { resolveI18nError } from "@/lib/i18n/resolveError";
 
 type ProfileRow = {
   id: string;
@@ -21,6 +23,9 @@ type ProfileRow = {
   avatar_path: string | null;
   city: string | null;
   verification_status: string | null;
+  visibility_status?: string | null;
+  strikes?: number | null;
+  banned_at?: string | null;
   show_followers: boolean;
   show_following: boolean;
   show_likes: boolean;
@@ -28,16 +33,19 @@ type ProfileRow = {
   dm_privacy: "all" | "matches";
 };
 
-type MediaItem = {
-  id: number;
-  media_type: "image" | "video";
+type ExtraPhoto = {
+  id: string;
   storage_path: string;
   signed_url?: string | null;
-  moderation_status?: "pending" | "safe" | "sensual" | "explicit" | "pending_manual" | null;
+  review_status?: "none" | "needs_review" | "reviewed_ok" | "reviewed_bad";
+  public_visible?: boolean;
+  status?: "pending" | "approved" | "rejected" | "deleted";
+  created_at?: string;
 };
 
 export default function ProfilePage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
@@ -48,14 +56,18 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement | null>(null);
-  const [media, setMedia] = useState<MediaItem[]>([]);
-  const [mediaLoading, setMediaLoading] = useState(false);
-  const mediaInputRef = useRef<HTMLInputElement | null>(null);
-  const [revealedMedia, setRevealedMedia] = useState<Set<number>>(new Set());
+  const [extraPhotos, setExtraPhotos] = useState<ExtraPhoto[]>([]);
+  const [extraLoading, setExtraLoading] = useState(false);
+  const extraInputRef = useRef<HTMLInputElement | null>(null);
   const [hasShowComments, setHasShowComments] = useState(true);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const avatarBucketReady = useRef<boolean | null>(null);
   const [isAdminUser, setIsAdminUser] = useState(false);
+  const [pendingReq, setPendingReq] = useState<{
+    id: string;
+    type: "initial" | "profile_change";
+    challenge_code: string;
+  } | null>(null);
 
   async function ensureAvatarBucket() {
     if (avatarBucketReady.current === true) return true;
@@ -64,14 +76,14 @@ export default function ProfilePage() {
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         const detail = body?.error ? `: ${body.error}` : "";
-        setMsg(`Erro a criar bucket${detail}`);
+        setMsg(`${t("profile.error.bucket")}${detail}`);
         avatarBucketReady.current = false;
         return false;
       }
       avatarBucketReady.current = true;
       return true;
     } catch (err: any) {
-      setMsg(`Erro a criar bucket: ${err?.message ?? "falha de rede"}`);
+      setMsg(`${t("profile.error.bucket")}: ${err?.message ?? t("common.error_generic")}`);
       avatarBucketReady.current = false;
       return false;
     }
@@ -84,7 +96,7 @@ export default function ProfilePage() {
     const { data, error } = await supabase
       .from("profiles")
       .select(
-        "id, username, bio, avatar_url, avatar_path, city, verification_status, show_followers, show_following, show_likes, show_comments, dm_privacy"
+        "id, username, bio, avatar_url, avatar_path, city, verification_status, visibility_status, strikes, banned_at, show_followers, show_following, show_likes, show_comments, dm_privacy"
       )
       .eq("id", user.id)
       .maybeSingle();
@@ -95,11 +107,11 @@ export default function ProfilePage() {
       if (missingShowComments || missingDmPrivacy) {
         const { data: fallback, error: fbErr } = await supabase
           .from("profiles")
-          .select("id, username, bio, avatar_url, avatar_path, city, verification_status, show_followers, show_following, show_likes")
+          .select("id, username, bio, avatar_url, avatar_path, city, verification_status, visibility_status, strikes, banned_at, show_followers, show_following, show_likes")
           .eq("id", user.id)
           .maybeSingle();
         if (fbErr) {
-          setMsg("Erro a carregar perfil: " + fbErr.message);
+          setMsg(`${t("profile.error.profile_load")}: ${fbErr.message}`);
           return;
         }
         setHasShowComments(!missingShowComments);
@@ -110,10 +122,10 @@ export default function ProfilePage() {
         setAvatarPath((withDefault as any).avatar_path ?? null);
         await resolveAvatarUrl((withDefault as any).avatar_path, (withDefault as any).avatar_url);
         setCity((withDefault as any).city ?? "");
-        await loadMedia(user.id);
+        await loadExtraPhotos(user.id);
         return;
       }
-      setMsg("Erro a carregar perfil: " + error.message);
+      setMsg(`${t("profile.error.profile_load")}: ${error.message}`);
       return;
     }
 
@@ -124,7 +136,17 @@ export default function ProfilePage() {
     await resolveAvatarUrl((data as any).avatar_path, (data as any).avatar_url);
     setCity((data as any).city ?? "");
     setHasShowComments(true);
-    await loadMedia(user.id);
+    await loadExtraPhotos(user.id);
+    const { data: pr, error: pre } = await supabase
+      .from("verification_requests")
+      .select("id,type,challenge_code,created_at")
+      .eq("user_id", user.id)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (!pre) {
+      setPendingReq((pr?.[0] as any) ?? null);
+    }
   }
 
   async function resolveAvatarUrl(path?: string | null, fallbackUrl?: string | null) {
@@ -155,19 +177,19 @@ export default function ProfilePage() {
         .eq("id", user.id)
         .maybeSingle();
 
-      const status = (data?.verification_status as any) ?? "pending";
+      const status = (data?.verification_status as any) ?? "unverified";
       const nextAdmin = !!data?.is_admin || isBootstrapAdmin(user.email);
       setVerificationCookies(status, true);
       setAdminCookie(nextAdmin);
       setIsAdminUser(nextAdmin);
 
-      if (error || status !== "approved") {
+      if (error || status !== "verified") {
         router.replace("/verify");
         return;
       }
 
       await load();
-    })().catch((e) => setMsg(e.message));
+    })().catch((e) => setMsg(resolveI18nError(t, e, t("profile.error.generic"))));
   }, [router]);
 
   useEffect(() => {
@@ -212,87 +234,87 @@ export default function ProfilePage() {
 
     setLoading(false);
 
-    if (error) return setMsg("Erro a guardar: " + error.message);
+    if (error) return setMsg(`${t("profile.error.save")}: ${error.message}`);
 
-    setMsg("Guardado ✅");
+    setMsg(t("profile.saved"));
     load().catch(() => {});
   }
 
-  async function loadMedia(userId: string) {
+  async function loadExtraPhotos(userId: string) {
     const { data, error } = await supabase
-      .from("profile_media")
-      .select("id, media_type, storage_path, moderation_status, created_at")
+      .from("profile_photos")
+      .select("id, storage_path, review_status, public_visible, status, created_at")
       .eq("user_id", userId)
+      .eq("kind", "extra")
+      .neq("status", "deleted")
       .order("created_at", { ascending: false });
 
     if (error) {
-      setMsg("Erro a carregar media: " + error.message);
+      setMsg(`${t("profile.error.media_load")}: ${error.message}`);
       return;
     }
 
-    const visible = (data ?? []).filter(
-      (row: any) => row.moderation_status !== "explicit"
-    );
-
     const withUrls = await Promise.all(
-      visible.map(async (row: any) => {
+      (data ?? []).map(async (row: any) => {
         const { data: signed, error: sErr } = await supabase.storage
-          .from("profile_media")
+          .from("private_media")
           .createSignedUrl(row.storage_path, 60 * 10);
         if (sErr) return { ...row, signed_url: null };
         return { ...row, signed_url: signed?.signedUrl ?? null };
       })
     );
 
-    setMedia(withUrls as MediaItem[]);
+    setExtraPhotos(withUrls as ExtraPhoto[]);
   }
 
-
-  async function onPickMedia(e: React.ChangeEvent<HTMLInputElement>) {
+  async function onPickExtras(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = Array.from(e.target.files ?? []);
     if (selected.length === 0) return;
     setMsg(null);
-    setMediaLoading(true);
+    setExtraLoading(true);
 
     try {
       const user = await requireUser();
 
       for (const file of selected) {
-        const mediaType = file.type.startsWith("video/") ? "video" : "image";
-        const path = `${user.id}/${Date.now()}_${file.name}`;
+        const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+        const photoId = crypto.randomUUID();
+        const path = `user/${user.id}/extras/${photoId}.${ext}`;
 
         const { error: upErr } = await supabase.storage
-          .from("profile_media")
-          .upload(path, file, { upsert: true });
+          .from("private_media")
+          .upload(path, file, { upsert: false, contentType: file.type });
 
         if (upErr) {
-          setMsg("Erro upload media: " + upErr.message);
+          setMsg(`${t("profile.error.media_upload")}: ${upErr.message}`);
           continue;
         }
 
-        const { data: inserted, error: insErr } = await supabase
-          .from("profile_media")
+        const { error: insErr } = await supabase
+          .from("profile_photos")
           .insert({
+            id: photoId,
             user_id: user.id,
-            media_type: mediaType,
+            kind: "extra",
             storage_path: path,
-            moderation_status: "pending",
-          })
-          .select("id")
-          .maybeSingle();
+            status: "approved",
+            meta: { source: "camera", bucket: "private_media" },
+          });
 
         if (insErr) {
-          setMsg("Erro guardar media: " + insErr.message);
-        } else if (inserted?.id) {
-          await supabase.functions.invoke("moderate-media", {
-            body: { media_id: inserted.id },
+          setMsg(`${t("profile.error.media_save")}: ${insErr.message}`);
+        } else {
+          await fetch("/api/photos/analyze", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ photo_id: photoId }),
           });
         }
       }
 
-      await loadMedia(user.id);
+      await loadExtraPhotos(user.id);
     } finally {
-      setMediaLoading(false);
+      setExtraLoading(false);
       e.target.value = "";
     }
   }
@@ -305,10 +327,33 @@ export default function ProfilePage() {
 
     try {
       const user = await requireUser();
+      const currentStatus = (profile?.verification_status as string | null) ?? "unverified";
+      if (currentStatus === "verified") {
+        const ok = confirm(t("profile.avatar_reverify_confirm"));
+        if (!ok) return;
+      }
+
+      let requestId: string | null = pendingReq?.id ?? null;
+      if (!requestId) {
+        const type = currentStatus === "verified" ? "profile_change" : "initial";
+        const { data: rid, error: startErr } = await supabase.rpc("rpc_start_verification", {
+          p_type: type,
+        });
+        if (startErr) {
+          setMsg(`${t("profile.error.avatar_save")}: ${startErr.message}`);
+          return;
+        }
+        requestId = (rid as string) ?? null;
+        if (requestId) {
+          setPendingReq({ id: requestId, type, challenge_code: "" });
+        }
+      }
+
       const ready = await ensureAvatarBucket();
       if (!ready) return;
       const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-      const path = `user/${user.id}/avatar.${ext}`;
+      const photoId = crypto.randomUUID();
+      const path = `user/${user.id}/profile/${photoId}.${ext}`;
       let upErr: { message: string } | null = null;
       const upload = async () =>
         supabase.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type });
@@ -325,7 +370,7 @@ export default function ProfilePage() {
           }
         }
         if (upErr) {
-          setMsg("Erro upload avatar: " + upErr.message);
+          setMsg(`${t("profile.error.avatar_upload")}: ${upErr.message}`);
           return;
         }
       }
@@ -336,13 +381,30 @@ export default function ProfilePage() {
         .eq("id", user.id);
 
       if (error) {
-        setMsg("Erro a guardar avatar: " + error.message);
+        setMsg(`${t("profile.error.avatar_save")}: ${error.message}`);
         return;
       }
 
+      await supabase.from("profile_photos").insert({
+        id: photoId,
+        user_id: user.id,
+        kind: "profile",
+        storage_path: path,
+        status: "pending",
+        public_visible: false,
+        meta: { request_id: requestId, bucket: "avatars", source: "camera" },
+      });
+
+      await fetch("/api/photos/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ photo_id: photoId }),
+      });
+
       setAvatarPath(path);
       await resolveAvatarUrl(path, null);
-      setMsg("Foto de perfil atualizada ✅");
+      setMsg(t("profile.avatar_updated"));
+      router.push("/verify");
     } finally {
       setLoading(false);
       e.target.value = "";
@@ -353,7 +415,7 @@ export default function ProfilePage() {
     field: "show_followers" | "show_following" | "show_likes" | "show_comments"
   ) {
     if (field === "show_comments" && !hasShowComments) {
-      setMsg("A coluna show_comments ainda nao existe. Aplica a migracao para ativar.");
+      setMsg(t("profile.error.show_comments_missing"));
       return;
     }
     if (!profile) return;
@@ -368,7 +430,7 @@ export default function ProfilePage() {
       .eq("id", user.id);
 
     if (error) {
-      setMsg("Erro: " + error.message);
+      setMsg(`${t("common.error_prefix")}${error.message}`);
       // reverter UI se falhar
       setProfile(profile);
     }
@@ -382,52 +444,83 @@ export default function ProfilePage() {
     const user = await requireUser();
     const { error } = await supabase.from("profiles").update({ dm_privacy: next }).eq("id", user.id);
     if (error) {
-      setMsg("Erro: " + error.message);
+      setMsg(`${t("common.error_prefix")}${error.message}`);
       setProfile({ ...profile, dm_privacy: prev });
     }
   }
 
-  const displayName = profile?.username ?? "Sem username";
+  const displayName = profile?.username ?? t("profile.no_username");
   const initials = (profile?.username ?? "?").slice(0, 1).toUpperCase();
-  const isVerified = profile?.verification_status === "approved";
+  const isVerified = profile?.verification_status === "verified";
+  const isPending = profile?.verification_status === "pending";
+
+  async function startVerificationInitial() {
+    if (!profile) return;
+    setLoading(true);
+    setMsg(null);
+    try {
+      const { data: rid, error } = await supabase.rpc("rpc_start_verification", {
+        p_type: "initial",
+      });
+      if (error) throw error;
+      const requestId = (rid as string) ?? null;
+      if (requestId) {
+        setPendingReq({ id: requestId, type: "initial", challenge_code: "" });
+      }
+      await load();
+      setMsg(t("profile.verify_hint"));
+    } catch (e: any) {
+      setMsg(e?.message ?? t("common.error_generic"));
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <AppShell title="Eu">
+    <AppShell title={t("nav.me")}>
       <div className="grid gap-6">
         <div className="grid gap-3">
           <Link
             href="/invite"
             className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm"
           >
-            Convites
+            {t("profile.invites")}
           </Link>
           <Link
             href="/premium"
             className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm"
           >
-            Premium
+            {t("profile.premium")}
           </Link>
           <button
             type="button"
             onClick={() => setSettingsOpen(true)}
             className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-left"
           >
-            Settings
+            {t("profile.settings")}
           </button>
           {isAdminUser ? (
             <Link
               href="/admin/metrics"
               className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm"
             >
-              Admin · Metricas
+              {t("profile.admin_metrics")}
+            </Link>
+          ) : null}
+          {isAdminUser ? (
+            <Link
+              href="/admin/review"
+              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm"
+            >
+              {t("profile.admin_review")}
             </Link>
           ) : null}
         </div>
 
-        <Card className="border-border bg-card/70">
+      <Card className="border-border bg-card/70">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
-            <CardTitle>Perfil</CardTitle>
+            <CardTitle>{t("profile.title")}</CardTitle>
           </div>
         </CardHeader>
         <CardContent className="grid gap-6">
@@ -437,7 +530,7 @@ export default function ProfilePage() {
                 type="button"
                 onClick={() => avatarInputRef.current?.click()}
                 className="group h-20 w-20 overflow-hidden rounded-full border border-border bg-muted text-lg font-semibold"
-                aria-label="Alterar foto de perfil"
+                aria-label={t("profile.change_avatar")}
               >
                 {avatarUrl ? (
                   <img src={avatarUrl} alt="avatar" className="h-full w-full object-cover" />
@@ -446,7 +539,7 @@ export default function ProfilePage() {
                 )}
                 <span className="absolute inset-0 bg-black/40 opacity-0 transition-opacity group-hover:opacity-100" />
                 <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs opacity-0 transition-opacity group-hover:opacity-100">
-                  Alterar
+                  {t("profile.change")}
                 </span>
               </button>
               {isVerified && (
@@ -464,7 +557,7 @@ export default function ProfilePage() {
             </div>
             <div className="grid gap-1">
               <div className="text-lg font-semibold">@{displayName}</div>
-              <div className="text-sm opacity-70">{profile?.city ?? "Sem cidade"}</div>
+              <div className="text-sm opacity-70">{profile?.city ?? t("profile.no_city")}</div>
             </div>
           </div>
           <input
@@ -474,19 +567,39 @@ export default function ProfilePage() {
             onChange={onPickAvatar}
             className="hidden"
           />
+          {!isVerified && !isPending ? (
+            <button
+              type="button"
+              onClick={startVerificationInitial}
+              className="w-full rounded-2xl bg-white text-black py-3 text-sm font-medium"
+              disabled={loading}
+            >
+              {t("profile.verify_cta")}
+            </button>
+          ) : null}
+          {isPending ? (
+            <button
+              type="button"
+              onClick={() => router.push("/verify")}
+              className="w-full rounded-2xl border border-white/10 bg-black/20 py-3 text-sm text-neutral-200 disabled:opacity-60"
+              disabled={loading}
+            >
+              {t("verify.go_to_selfie")}
+            </button>
+          ) : null}
 
           <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="grid gap-3 rounded-2xl border border-border bg-muted/20 p-4">
-              <Label>Sobre</Label>
+              <Label>{t("profile.about")}</Label>
               <textarea
                 className="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                placeholder="Escreve a tua bio (emojis ok ✨)"
+                placeholder={t("profile.about_placeholder")}
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
               />
               <div className="flex gap-2">
                 <Button variant="secondary" onClick={saveProfile} disabled={loading}>
-                  {loading ? "A guardar..." : "Guardar bio"}
+                  {loading ? t("common.creating") : t("profile.save_bio")}
                 </Button>
               </div>
             </div>
@@ -494,67 +607,50 @@ export default function ProfilePage() {
           </div>
 
           <div className="grid gap-2">
-            <Label>Relacoes</Label>
-            <div className="text-sm opacity-70">Privado. Sem contagens publicas.</div>
+            <Label>{t("profile.relations")}</Label>
+            <div className="text-sm opacity-70">{t("profile.relations_hint")}</div>
           </div>
 
           <div className="grid gap-2">
             <div className="flex items-center justify-between">
-              <Label>Fotos e videos</Label>
+              <Label>{t("profile.media")}</Label>
               <div>
                 <input
-                  ref={mediaInputRef}
+                  ref={extraInputRef}
                   type="file"
-                  accept="image/*,video/*"
+                  accept="image/*"
                   multiple
-                  onChange={onPickMedia}
+                  onChange={onPickExtras}
                   className="hidden"
                 />
-                <Button type="button" variant="outline" onClick={() => mediaInputRef.current?.click()}>
-                  Adicionar
+                <Button type="button" variant="outline" onClick={() => extraInputRef.current?.click()}>
+                  {t("profile.add_media")}
                 </Button>
               </div>
             </div>
-            {mediaLoading ? <div className="text-sm opacity-70">A enviar...</div> : null}
-            {media.length === 0 ? (
-              <div className="text-sm opacity-70">Ainda sem media.</div>
+            {extraLoading ? <div className="text-sm opacity-70">{t("profile.uploading")}</div> : null}
+            {extraPhotos.length === 0 ? (
+              <div className="text-sm opacity-70">{t("profile.no_media")}</div>
             ) : (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {media.map((item) => {
-                  const isSensitive =
-                    item.moderation_status === "sensual" ||
-                    item.moderation_status === "pending_manual" ||
-                    item.moderation_status === "pending";
-                  const isRevealed = revealedMedia.has(item.id);
-                  const blurClass = isSensitive && !isRevealed ? "blur-md" : "";
-                  return (
-                    <div key={item.id} className="relative">
-                      {item.media_type === "video" ? (
-                        <video
-                          src={item.signed_url ?? ""}
-                          className={`h-36 w-full rounded-md object-cover ${blurClass}`}
-                          controls
-                        />
-                      ) : (
-                        <img
-                          src={item.signed_url ?? ""}
-                          alt="media"
-                          className={`h-36 w-full rounded-md object-cover ${blurClass}`}
-                        />
-                      )}
-                      {isSensitive && !isRevealed ? (
-                        <button
-                          className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-white bg-black/40 rounded-md"
-                          onClick={() =>
-                            setRevealedMedia((prev) => new Set(prev).add(item.id))
-                          }
-                        >
-                          Revelar
-                        </button>
-                      ) : null}
-                    </div>
-                  );
-                })}
+                {extraPhotos.map((item) => (
+                  <div key={item.id} className="relative">
+                    {item.signed_url ? (
+                      <img
+                        src={item.signed_url}
+                        alt="media"
+                        className="h-36 w-full rounded-md object-cover"
+                      />
+                    ) : (
+                      <div className="h-36 w-full rounded-md bg-muted/30" />
+                    )}
+                    {item.review_status === "needs_review" || item.public_visible === false ? (
+                      <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-white bg-black/40 rounded-md">
+                        {t("profile.photo_review")}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -568,53 +664,61 @@ export default function ProfilePage() {
           <div ref={settingsRef} className="w-full max-w-lg">
             <Card className="animate-in fade-in-0 zoom-in-95">
               <CardHeader>
-                <CardTitle>Settings</CardTitle>
+                <CardTitle>{t("profile.settings_modal")}</CardTitle>
               </CardHeader>
               <CardContent className="grid gap-4">
                 <div className="grid gap-2">
-                  <Label>Username</Label>
+                  <Label>{t("profile.username")}</Label>
                   <Input
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="ex: jorge"
+                    placeholder={t("profile.username_placeholder")}
                   />
                 </div>
 
                 <div className="grid gap-2">
-                  <Label>Cidade</Label>
-                  <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="ex: Lisboa" />
+                  <Label>{t("profile.city")}</Label>
+                  <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder={t("profile.city_placeholder")} />
                 </div>
 
                 <div className="grid gap-2 pt-2">
-                  <Label>Private Space</Label>
-                  <div className="text-sm opacity-70">Quem te pode contactar em privado.</div>
+                  <Label>{t("profile.private_space")}</Label>
+                  <div className="text-sm opacity-70">{t("profile.private_space_hint")}</div>
                   <div className="flex gap-2">
                     <Button
                       variant={profile?.dm_privacy === "all" ? "secondary" : "outline"}
                       onClick={() => updateDmPrivacy("all")}
                     >
-                      Todos
+                      {t("profile.all")}
                     </Button>
                     <Button
                       variant={profile?.dm_privacy === "matches" ? "secondary" : "outline"}
                       onClick={() => updateDmPrivacy("matches")}
                     >
-                      Apenas matches
+                      {t("profile.matches_only")}
                     </Button>
                   </div>
+                </div>
+
+                <div className="grid gap-2 pt-2">
+                  <Label>{t("profile.blocks")}</Label>
+                  <div className="text-sm opacity-70">{t("profile.blocks_hint")}</div>
+                  <Button variant="outline" onClick={() => router.push("/settings/blocks")}>
+                    {t("profile.view_blocks")}
+                  </Button>
                 </div>
 
                 <div className="grid gap-3 pt-2">
                   {hasShowComments ? (
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="font-medium">Mostrar comentarios</div>
+                        <div className="font-medium">{t("profile.show_comments")}</div>
                         <div className="text-sm opacity-70">
-                          Se desligar, ninguém vê comentarios nos teus posts.
+                          {t("profile.show_comments_hint")}
                         </div>
                       </div>
                       <Button variant="outline" onClick={() => toggle("show_comments")}>
-                        {profile?.show_comments ? "ON" : "OFF"}
+                        {profile?.show_comments ? t("common.on") : t("common.off")}
                       </Button>
                     </div>
                   ) : null}
@@ -622,16 +726,16 @@ export default function ProfilePage() {
 
                 <div className="flex gap-2">
                   <Button onClick={saveProfile} disabled={loading}>
-                    {loading ? "A guardar..." : "Guardar"}
+                    {loading ? t("common.creating") : t("profile.save")}
                   </Button>
                   <Button
                     variant="secondary"
                     onClick={() => supabase.auth.signOut().then(() => (location.href = "/login"))}
                   >
-                    Logout
+                    {t("profile.logout")}
                   </Button>
                   <Button variant="ghost" onClick={() => setSettingsOpen(false)}>
-                    Fechar
+                    {t("profile.close")}
                   </Button>
                 </div>
               </CardContent>

@@ -10,7 +10,8 @@ export default function Root() {
   useEffect(() => {
     (async () => {
       const g = await getMyGateState();
-      if (!g.unlocked) router.replace("/unlock");
+      if (!g.legalAccepted) router.replace("/legal/terms");
+      else if (!g.unlocked) router.replace("/unlock");
       else if (!g.onboarded) router.replace("/onboarding");
       else router.replace("/discover");
     })();

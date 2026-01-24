@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getSignedAvatarUrl } from "@/lib/avatar";
 import type { ProfileMini, MatchRow } from "@/lib/inbox";
+import { useI18n } from "@/components/I18nProvider";
 
 export default function PendingMatchCard({
   match,
@@ -18,6 +19,7 @@ export default function PendingMatchCard({
   busy?: boolean;
 }) {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const { t } = useI18n();
 
   useEffect(() => {
     let alive = true;
@@ -54,12 +56,14 @@ export default function PendingMatchCard({
           <div className="flex items-center justify-between gap-3">
             <div className="font-medium truncate">{title}</div>
             <div className="text-xs text-neutral-400">
-              expira: {new Date(match.expires_at).toLocaleString()}
+              {t("common.expires_in", {
+                time: new Date(match.expires_at).toLocaleString(),
+              })}
             </div>
           </div>
 
           <div className="mt-1 text-sm text-neutral-400">
-            Alguem pediu entrada. Aceitas?
+            {t("inbox.pending_prompt")}
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-3">
@@ -68,19 +72,19 @@ export default function PendingMatchCard({
               disabled={busy}
               className="rounded-2xl border border-white/10 py-2.5 text-sm hover:border-white/20 disabled:opacity-60"
             >
-              Fechar
+              {t("inbox.close")}
             </button>
             <button
               onClick={onAccept}
               disabled={busy}
               className="rounded-2xl bg-white text-black py-2.5 text-sm font-medium disabled:opacity-60"
             >
-              {busy ? "…" : "Abrir"}
+              {busy ? "…" : t("inbox.open")}
             </button>
           </div>
 
           <p className="mt-2 text-xs text-neutral-500">
-            Sem guardar para depois. Se expirar, acabou.
+            {t("inbox.pending_note")}
           </p>
         </div>
       </div>

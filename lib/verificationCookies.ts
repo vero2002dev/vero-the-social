@@ -1,4 +1,4 @@
-export type VerificationStatus = "pending" | "approved" | "rejected";
+export type VerificationStatus = "unverified" | "pending" | "verified" | "failed";
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 

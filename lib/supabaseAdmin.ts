@@ -6,7 +6,7 @@ export function supabaseAdmin() {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 
   if (!supabaseUrl || !serviceKey) {
-    throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+    throw new Error("common.supabase_admin_missing");
   }
 
   return createClient(supabaseUrl, serviceKey, {

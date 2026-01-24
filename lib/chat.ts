@@ -42,7 +42,7 @@ export async function fetchMessages(conversationId: number) {
 export async function sendTextMessage(conversationId: number, text: string) {
   const { data: auth } = await supabase.auth.getUser();
   const me = auth.user?.id;
-  if (!me) throw new Error("Sessao invalida.");
+  if (!me) throw new Error("common.session_invalid");
 
   const payload = {
     conversation_id: conversationId,
@@ -59,7 +59,7 @@ export async function sendTextMessage(conversationId: number, text: string) {
 export async function createImageMessagePlaceholder(conversationId: number) {
   const { data: auth } = await supabase.auth.getUser();
   const me = auth.user?.id;
-  if (!me) throw new Error("Sessao invalida.");
+  if (!me) throw new Error("common.session_invalid");
 
   const { data, error } = await supabase
     .from("messages")

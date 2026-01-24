@@ -6,7 +6,7 @@ export function getSupabaseClient() {
   if (cachedClient) return cachedClient;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-  if (!url) throw new Error("supabaseUrl is required.");
+  if (!url) throw new Error("common.supabase_url_required");
   cachedClient = createClient(url, key);
   return cachedClient;
 }

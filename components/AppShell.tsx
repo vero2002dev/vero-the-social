@@ -2,13 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-const tabs = [
-  { href: "/discover", label: "Descobrir" },
-  { href: "/inbox", label: "Inbox" },
-  { href: "/chats", label: "Chats" },
-  { href: "/profile", label: "Eu" },
-];
+import { useI18n } from "@/components/I18nProvider";
 
 export default function AppShell({
   title,
@@ -20,6 +14,14 @@ export default function AppShell({
   children: React.ReactNode;
 }) {
   const path = usePathname();
+  const { t } = useI18n();
+
+  const tabs = [
+    { href: "/discover", label: t("nav.discover") },
+    { href: "/inbox", label: t("nav.inbox") },
+    { href: "/chats", label: t("nav.chats") },
+    { href: "/profile", label: t("nav.me") },
+  ];
 
   return (
     <main className="min-h-screen bg-black text-white">

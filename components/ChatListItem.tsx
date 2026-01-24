@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getSignedAvatarUrl } from "@/lib/avatar";
 import Link from "next/link";
+import { useI18n } from "@/components/I18nProvider";
 
 export default function ChatListItem({
   item,
@@ -16,6 +17,7 @@ export default function ChatListItem({
   };
 }) {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const { t } = useI18n();
 
   useEffect(() => {
     let alive = true;
@@ -54,7 +56,7 @@ export default function ChatListItem({
             </div>
           </div>
           <div className="mt-1 text-sm text-neutral-300 truncate">
-            {item.last_text ?? "Sem mensagens ainda."}
+            {item.last_text ?? t("chat.list.empty")}
           </div>
         </div>
       </div>

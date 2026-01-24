@@ -3,25 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { DiscoverRow } from "@/lib/rpc";
 import { getSignedAvatarUrl } from "@/lib/avatar";
-
-function labelIntent(key: string | null) {
-  switch (key) {
-    case "curiosity":
-      return "Curiosidade";
-    case "connection":
-      return "Conexao";
-    case "desire":
-      return "Desejo";
-    case "private":
-      return "Privado";
-    case "casual":
-      return "Casual";
-    case "no_labels":
-      return "Sem rotulos";
-    default:
-      return "—";
-  }
-}
+import { useI18n } from "@/components/I18nProvider";
 
 export default function ProfileCard({
   row,
@@ -33,6 +15,7 @@ export default function ProfileCard({
   requesting?: boolean;
 }) {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const { t } = useI18n();
 
   useEffect(() => {
     let alive = true;
@@ -66,7 +49,7 @@ export default function ProfileCard({
           <div className="flex items-center justify-between gap-3">
             <div className="font-medium truncate">{title}</div>
             <div className="text-xs text-neutral-400">
-              {labelIntent(row.intent_key)} {row.intensity ? `· ${row.intensity}/5` : ""}
+              {labelIntent(t, row.intent_key)} {row.intensity ? `· ${row.intensity}/5` : ""}
             </div>
           </div>
 
@@ -76,7 +59,7 @@ export default function ProfileCard({
             </div>
           ) : (
             <div className="mt-1 text-sm text-neutral-500">
-              Sem bio.
+              {t("discover.card.empty_bio")}
             </div>
           )}
 
@@ -85,14 +68,33 @@ export default function ProfileCard({
             disabled={requesting}
             className="mt-4 w-full rounded-2xl bg-white text-black py-2.5 font-medium disabled:opacity-60"
           >
-            {requesting ? "Pedido enviado. Agora esperas." : "Pedir entrada"}
+            {requesting ? t("discover.request_sent") : t("discover.request")}
           </button>
 
           <p className="mt-2 text-xs text-neutral-500">
-            Se pedires entrada, tens 48h.
+            {t("discover.card.request_rule")}
           </p>
         </div>
       </div>
     </div>
   );
+}
+
+function labelIntent(t: (key: string) => string, key: string | null) {
+  switch (key) {
+    case "curiosity":
+      return t("intent.curiosity");
+    case "connection":
+      return t("intent.connection");
+    case "desire":
+      return t("intent.desire");
+    case "private":
+      return t("intent.private");
+    case "casual":
+      return t("intent.casual");
+    case "no_labels":
+      return t("intent.no_labels");
+    default:
+      return "—";
+  }
 }

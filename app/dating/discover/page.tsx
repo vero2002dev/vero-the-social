@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { useI18n } from "@/components/I18nProvider";
 
 type Profile = {
   id: string;
@@ -18,24 +19,25 @@ export default function DiscoverPage() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [idx, setIdx] = useState(0);
 const [msg, setMsg] = useState<string | null>(null);
+  const { t } = useI18n();
 
   function formatIntent(value?: string | null) {
-    if (!value) return "Intencao por definir";
+    if (!value) return t("dating.intent.undefined");
     switch (value) {
       case "curiosidade":
-        return "Curiosidade";
+        return t("dating.intent.curiosidade");
       case "conexao":
-        return "Conexao";
+        return t("dating.intent.conexao");
       case "desejo":
-        return "Desejo";
+        return t("dating.intent.desejo");
       case "conversa":
-        return "Conversa sem filtros";
+        return t("dating.intent.conversa");
       case "privado":
-        return "Algo privado";
+        return t("dating.intent.privado");
       case "passageiro":
-        return "Algo passageiro";
+        return t("dating.intent.passageiro");
       default:
-        return "Intencao por definir";
+        return t("dating.intent.undefined");
     }
   }
 
@@ -47,7 +49,7 @@ const [msg, setMsg] = useState<string | null>(null);
       const { data: sess } = await supabase.auth.getSession();
       const user = sess.session?.user;
       if (!user) {
-        setMsg("Faz login para usar o Discover.");
+        setMsg(t("dating.login_required"));
         return;
       }
       setMe(user.id);
@@ -59,7 +61,7 @@ const [msg, setMsg] = useState<string | null>(null);
         .neq("id", user.id)
         .limit(50);
 
-      if (error) return setMsg("Erro a carregar perfis: " + error.message);
+      if (error) return setMsg(t("dating.discover.error.load", { msg: error.message }));
       setProfiles((data as Profile[]) ?? []);
       setIdx(0);
     })();
@@ -86,7 +88,7 @@ const [msg, setMsg] = useState<string | null>(null);
     if (countErr && String(countErr.message).includes("created_at")) {
       // fallback: allow if schema doesn't have created_at
     } else if ((count ?? 0) >= 5) {
-      setMsg("Limite diario atingido. Volta amanha.");
+      setMsg(t("dating.discover.limit"));
       return;
     }
 
@@ -97,21 +99,21 @@ const [msg, setMsg] = useState<string | null>(null);
 
     // se for duplicate like, ignoramos
     if (error && !String(error.message).toLowerCase().includes("duplicate")) {
-      setMsg("Erro no like: " + error.message);
+      setMsg(t("dating.discover.error.like", { msg: error.message }));
       return;
     }
 
-    setMsg("✅ Revelacao enviada");
+    setMsg(t("dating.reveal_sent"));
     nextCard();
   }
 
   if (!me) {
     return (
       <main className="space-y-3">
-        <h1 className="text-2xl font-semibold">Discover</h1>
+        <h1 className="text-2xl font-semibold">{t("dating.title")}</h1>
         {msg && <p className="text-sm opacity-80">{msg}</p>}
         <Link className="underline" href="/login">
-          Ir para Login
+          {t("dating.login_link")}
         </Link>
       </main>
     );
@@ -121,11 +123,11 @@ const [msg, setMsg] = useState<string | null>(null);
     <main className="space-y-6">
       <div className="flex items-center justify-between rounded-2xl border border-border bg-card/70 p-4">
         <div>
-          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Explorar</div>
-          <h1 className="text-2xl font-semibold">Discover</h1>
+          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{t("dating.explore")}</div>
+          <h1 className="text-2xl font-semibold">{t("dating.title")}</h1>
         </div>
         <Link className="text-xs uppercase tracking-[0.2em] text-muted-foreground" href="/dating/matches">
-          Aceites
+          {t("dating.accepted")}
         </Link>
       </div>
 
@@ -133,7 +135,7 @@ const [msg, setMsg] = useState<string | null>(null);
 
       {!current ? (
         <div className="border rounded-2xl p-6 bg-card/70">
-          <p>Sem mais perfis por agora.</p>
+          <p>{t("dating.discover.empty")}</p>
         </div>
       ) : (
         <div className="border rounded-3xl p-6 space-y-5 max-w-2xl bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.06),transparent_55%)]">
@@ -142,12 +144,14 @@ const [msg, setMsg] = useState<string | null>(null);
               {current.avatar_url ? (
                 <img src={current.avatar_url} alt="avatar" className="h-full w-full object-cover" />
               ) : (
-                <span className="text-sm opacity-70">sem foto</span>
+                <span className="text-sm opacity-70">{t("dating.no_photo")}</span>
               )}
             </div>
             <div>
-              <div className="font-semibold text-lg">{current.display_name ?? "Sem nome"}</div>
-              <div className="text-xs opacity-70">Intencao: {formatIntent(current.intent)}</div>
+              <div className="font-semibold text-lg">{current.display_name ?? t("dating.discover.no_name")}</div>
+              <div className="text-xs opacity-70">
+                {t("dating.intent_label")}: {formatIntent(current.intent)}
+              </div>
             </div>
           </div>
 
@@ -155,10 +159,10 @@ const [msg, setMsg] = useState<string | null>(null);
 
           <div className="flex gap-3">
             <button onClick={nextCard} className="px-5 py-2 rounded-full border bg-transparent">
-              Agora nao
+              {t("dating.not_now")}
             </button>
             <button onClick={like} className="px-5 py-2 rounded-full border bg-white text-black">
-              Revelar
+              {t("dating.reveal")}
             </button>
           </div>
         </div>

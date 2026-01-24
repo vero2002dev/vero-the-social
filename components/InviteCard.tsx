@@ -1,6 +1,7 @@
 "use client";
 
 import { logEvent } from "@/lib/events";
+import { useI18n } from "@/components/I18nProvider";
 
 export default function InviteCard({
   code,
@@ -11,7 +12,8 @@ export default function InviteCard({
   status: string;
   expiresAt: string;
 }) {
-  const text = `Tenho um convite para o VERO.\nCodigo: ${code}\n(e por convite, nao e publico)`;
+  const { t } = useI18n();
+  const text = t("invite.card.copy_text", { code });
 
   async function copy() {
     await navigator.clipboard.writeText(text);
@@ -21,24 +23,24 @@ export default function InviteCard({
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
       <div className="flex items-center justify-between gap-3">
-        <div className="font-medium">Convite</div>
+        <div className="font-medium">{t("invite.card.title")}</div>
         <div className="text-xs text-neutral-500">{status}</div>
       </div>
 
       <div className="mt-3 text-2xl font-semibold tracking-widest">{code}</div>
 
       <div className="mt-2 text-xs text-neutral-500">
-        expira: {new Date(expiresAt).toLocaleString()}
+        {t("invite.card.expires", { time: new Date(expiresAt).toLocaleString() })}
       </div>
 
       <button
         onClick={copy}
         className="mt-4 w-full rounded-2xl bg-white text-black py-2.5 text-sm font-medium"
       >
-        Copiar texto
+        {t("invite.card.copy_button")}
       </button>
 
-      <p className="mt-2 text-xs text-neutral-500">Envia por DM. Nao publiques.</p>
+      <p className="mt-2 text-xs text-neutral-500">{t("invite.card.note")}</p>
     </div>
   );
 }

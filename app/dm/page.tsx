@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { useI18n } from "@/components/I18nProvider";
 
 type MatchRow = {
   id: number;
@@ -32,6 +33,7 @@ export default function DmPage() {
   const [consents, setConsents] = useState<ConsentRow[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const { t } = useI18n();
 
   const consentByTarget = useMemo(() => {
     const map = new Map<string, ConsentRow>();
@@ -46,7 +48,7 @@ export default function DmPage() {
     const { data: sess } = await supabase.auth.getSession();
     const user = sess.session?.user;
     if (!user) {
-      setMsg("Faz login para usar DM.");
+      setMsg(t("dm.login_required"));
       return;
     }
     setMe(user.id);
@@ -56,7 +58,7 @@ export default function DmPage() {
       .select("id, user1, user2, created_at")
       .or(`user1.eq.${user.id},user2.eq.${user.id}`);
 
-    if (matchErr) return setMsg("Erro matches: " + matchErr.message);
+    if (matchErr) return setMsg(t("dm.error.matches", { msg: matchErr.message }));
     const matchRows = (matchData as MatchRow[]) ?? [];
     setMatches(matchRows);
 
@@ -72,7 +74,7 @@ export default function DmPage() {
         .select("id, username, avatar_url")
         .in("id", otherIds);
 
-      if (profileErr) return setMsg("Erro perfis: " + profileErr.message);
+      if (profileErr) return setMsg(t("dm.error.profiles", { msg: profileErr.message }));
       const map: Record<string, ProfileRow> = {};
       (profileData as ProfileRow[]).forEach((p) => {
         map[p.id] = p;
@@ -87,7 +89,7 @@ export default function DmPage() {
       .select("id, requester_id, target_id, status, updated_at")
       .or(`requester_id.eq.${user.id},target_id.eq.${user.id}`);
 
-    if (consentErr) return setMsg("Erro consentimentos: " + consentErr.message);
+    if (consentErr) return setMsg(t("dm.error.consents", { msg: consentErr.message }));
     setConsents((consentData as ConsentRow[]) ?? []);
   }
 
@@ -113,7 +115,7 @@ export default function DmPage() {
       { onConflict: "requester_id,target_id" }
     );
     setLoading(false);
-    if (error) return setMsg("Erro pedido: " + error.message);
+    if (error) return setMsg(t("dm.error.request", { msg: error.message }));
     await load();
   }
 
@@ -124,17 +126,17 @@ export default function DmPage() {
       .update({ status, updated_at: new Date().toISOString() })
       .eq("id", id);
     setLoading(false);
-    if (error) return setMsg("Erro: " + error.message);
+    if (error) return setMsg(t("dm.error.generic", { msg: error.message }));
     await load();
   }
 
   if (!me) {
     return (
       <main className="space-y-3">
-        <h1 className="text-2xl font-semibold">Private Space</h1>
+        <h1 className="text-2xl font-semibold">{t("dm.title")}</h1>
         {msg && <p className="text-sm opacity-80">{msg}</p>}
         <Link className="underline" href="/login">
-          Ir para Login
+          {t("dm.login_link")}
         </Link>
       </main>
     );
@@ -147,11 +149,11 @@ export default function DmPage() {
     <main className="space-y-6">
       <div className="flex items-center justify-between rounded-2xl border border-border bg-card/70 p-4">
         <div>
-          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Private</div>
-          <h1 className="text-2xl font-semibold">Private Space</h1>
+          <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{t("dm.private_label")}</div>
+          <h1 className="text-2xl font-semibold">{t("dm.title")}</h1>
         </div>
         <Link className="text-xs uppercase tracking-[0.2em] text-muted-foreground" href="/settings">
-          Settings
+          {t("dm.settings")}
         </Link>
       </div>
 
@@ -159,12 +161,12 @@ export default function DmPage() {
 
       <div className="grid gap-4">
         <div className="rounded-2xl border border-border bg-card/70 p-4 text-sm text-muted-foreground">
-          Conteudo sensivel so pode ser enviado com permissao explicita.
+          {t("dm.sensitive_note")}
         </div>
         <div className="rounded-2xl border border-border bg-card/70 p-4">
-          <div className="font-semibold">Pedidos recebidos</div>
+          <div className="font-semibold">{t("dm.received")}</div>
           {incoming.length === 0 ? (
-            <div className="text-sm opacity-70 mt-2">Sem pedidos pendentes.</div>
+            <div className="text-sm opacity-70 mt-2">{t("dm.none_received")}</div>
           ) : (
             <div className="mt-3 grid gap-3">
               {incoming.map((c) => {
@@ -172,7 +174,7 @@ export default function DmPage() {
                 return (
                   <div key={c.id} className="flex items-center justify-between">
                     <div className="text-sm">
-                      @{p?.username ?? "user"}
+                      @{p?.username ?? t("dm.user_fallback")}
                     </div>
                     <div className="flex gap-2">
                       <button
@@ -180,14 +182,14 @@ export default function DmPage() {
                         onClick={() => updateConsent(c.id, "accepted")}
                         disabled={loading}
                       >
-                        Permitir
+                        {t("dm.allow")}
                       </button>
                       <button
                         className="rounded-full border px-3 py-1 text-xs"
                         onClick={() => updateConsent(c.id, "rejected")}
                         disabled={loading}
                       >
-                        Recusar
+                        {t("dm.deny")}
                       </button>
                     </div>
                   </div>
@@ -198,9 +200,9 @@ export default function DmPage() {
         </div>
 
         <div className="rounded-2xl border border-border bg-card/70 p-4">
-          <div className="font-semibold">Pedidos enviados</div>
+          <div className="font-semibold">{t("dm.sent")}</div>
           {outgoing.length === 0 ? (
-            <div className="text-sm opacity-70 mt-2">Ainda nao enviaste pedidos.</div>
+            <div className="text-sm opacity-70 mt-2">{t("dm.none_sent")}</div>
           ) : (
             <div className="mt-3 grid gap-3">
               {outgoing.map((c) => {
@@ -208,7 +210,7 @@ export default function DmPage() {
                 return (
                   <div key={c.id} className="flex items-center justify-between">
                     <div className="text-sm">
-                      @{p?.username ?? "user"} · {c.status}
+                      @{p?.username ?? t("dm.user_fallback")} · {c.status}
                     </div>
                     {c.status === "pending" || c.status === "accepted" ? (
                       <button
@@ -216,7 +218,7 @@ export default function DmPage() {
                         onClick={() => updateConsent(c.id, "canceled")}
                         disabled={loading}
                       >
-                        Cancelar permissao
+                        {t("dm.cancel_permission")}
                       </button>
                     ) : null}
                   </div>
@@ -227,9 +229,9 @@ export default function DmPage() {
         </div>
 
         <div className="rounded-2xl border border-border bg-card/70 p-4">
-          <div className="font-semibold">Conexoes</div>
+          <div className="font-semibold">{t("dm.connections")}</div>
           {matches.length === 0 ? (
-            <div className="text-sm opacity-70 mt-2">Ainda nao tens conexoes.</div>
+            <div className="text-sm opacity-70 mt-2">{t("dm.none_connections")}</div>
           ) : (
             <div className="mt-3 grid gap-3">
               {matches.map((m) => {
@@ -241,15 +243,15 @@ export default function DmPage() {
                 return (
                   <div key={m.id} className="flex items-center justify-between">
                     <div className="text-sm">
-                      @{p?.username ?? "user"}
+                      @{p?.username ?? t("dm.user_fallback")}
                     </div>
                     <div className="flex items-center gap-2 text-xs">
                       {consent?.status === "accepted" ? (
-                        <span className="opacity-70">Permissao ativa</span>
+                        <span className="opacity-70">{t("dm.permission_active")}</span>
                       ) : consent?.status === "pending" ? (
-                        <span className="opacity-70">Pendente</span>
+                        <span className="opacity-70">{t("dm.pending")}</span>
                       ) : consent?.status === "rejected" ? (
-                        <span className="opacity-70">Recusado</span>
+                        <span className="opacity-70">{t("dm.rejected")}</span>
                       ) : null}
                       {canRequest ? (
                         <button
@@ -257,7 +259,7 @@ export default function DmPage() {
                           onClick={() => requestConsent(otherId)}
                           disabled={loading}
                         >
-                          {consent ? "Pedir novamente" : "Pedir permissao"}
+                          {consent ? t("dm.request_again") : t("dm.request_permission")}
                         </button>
                       ) : null}
                     </div>

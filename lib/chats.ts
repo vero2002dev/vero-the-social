@@ -13,7 +13,7 @@ export type ChatListItem = {
 export async function fetchActiveChats(): Promise<ChatListItem[]> {
   const { data: auth } = await supabase.auth.getUser();
   const me = auth.user?.id;
-  if (!me) throw new Error("Sessao invalida.");
+  if (!me) throw new Error("common.session_invalid");
 
   const { data: convs, error: convErr } = await supabase
     .from("conversations")

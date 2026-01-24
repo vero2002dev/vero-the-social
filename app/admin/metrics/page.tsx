@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { rpcAdminKpis, rpcAdminMetrics, type AdminMetricsRow } from "@/lib/adminMetrics";
 import { useRouter } from "next/navigation";
+import { useI18n } from "@/components/I18nProvider";
 
 export default function AdminMetricsPage() {
   const [days, setDays] = useState(14);
@@ -12,6 +13,7 @@ export default function AdminMetricsPage() {
   const [err, setErr] = useState<string | null>(null);
 
   const router = useRouter();
+  const { t } = useI18n();
 
   async function load(d = days) {
     setErr(null);
@@ -21,7 +23,7 @@ export default function AdminMetricsPage() {
       setKpis(k);
       setRows(r);
     } catch (e: any) {
-      setErr(e?.message ?? "Erro a carregar metricas.");
+      setErr(e?.message ?? t("common.error_generic"));
     } finally {
       setLoading(false);
     }
@@ -60,8 +62,8 @@ export default function AdminMetricsPage() {
       <div className="max-w-5xl mx-auto p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Admin · Metricas</h1>
-            <p className="mt-2 text-sm text-neutral-400">Funil real. Sem adivinhar.</p>
+            <h1 className="text-2xl font-semibold tracking-tight">{t("admin.metrics.title")}</h1>
+            <p className="mt-2 text-sm text-neutral-400">{t("admin.metrics.subtitle")}</p>
           </div>
 
           <div className="flex gap-2">
@@ -70,23 +72,23 @@ export default function AdminMetricsPage() {
               onChange={(e) => setDays(parseInt(e.target.value, 10))}
               className="rounded-2xl bg-white/5 border border-white/10 px-3 py-2 text-sm"
             >
-              <option value={7}>7 dias</option>
-              <option value={14}>14 dias</option>
-              <option value={30}>30 dias</option>
+              <option value={7}>{t("admin.metrics.days_7")}</option>
+              <option value={14}>{t("admin.metrics.days_14")}</option>
+              <option value={30}>{t("admin.metrics.days_30")}</option>
             </select>
 
             <button
               className="rounded-2xl border border-white/10 px-4 py-2 text-sm hover:border-white/20"
               onClick={() => load(days)}
             >
-              Atualizar
+              {t("admin.metrics.update")}
             </button>
 
             <button
               className="rounded-2xl border border-white/10 px-4 py-2 text-sm hover:border-white/20"
               onClick={() => router.push("/invite")}
             >
-              Convites
+              {t("admin.metrics.invites")}
             </button>
           </div>
         </div>
@@ -94,29 +96,29 @@ export default function AdminMetricsPage() {
         {err && <div className="mt-4 text-sm text-red-400">{err}</div>}
 
         {loading ? (
-          <div className="mt-8 text-sm text-neutral-400">A carregar...</div>
+          <div className="mt-8 text-sm text-neutral-400">{t("admin.metrics.loading")}</div>
         ) : (
           <>
             <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <KpiCard title="Unlocks" value={kpis?.unlock_success} sub={`ultimos ${days} dias`} />
-              <KpiCard title="Onboard rate" value={pct(kpis?.onboard_rate)} sub="onboarding_done / unlock_success" />
-              <KpiCard title="Intent rate" value={pct(kpis?.intent_rate)} sub="intent_set / onboarding_done" />
-              <KpiCard title="Request rate" value={pct(kpis?.request_rate)} sub="match_request / intent_set" />
-              <KpiCard title="Accept rate" value={pct(kpis?.accept_rate)} sub="match_accept / match_request" />
-              <KpiCard title="Chat rate" value={pct(kpis?.chat_rate)} sub="chat_send_text / match_accept" />
+              <KpiCard title={t("admin.metrics.unlocks")} value={kpis?.unlock_success} sub={t("admin.metrics.kpi.last_days", { days: String(days) })} />
+              <KpiCard title={t("admin.metrics.onboard_rate_title")} value={pct(kpis?.onboard_rate)} sub={t("admin.metrics.kpi.onboard_rate")} />
+              <KpiCard title={t("admin.metrics.intent_rate_title")} value={pct(kpis?.intent_rate)} sub={t("admin.metrics.kpi.intent_rate")} />
+              <KpiCard title={t("admin.metrics.request_rate_title")} value={pct(kpis?.request_rate)} sub={t("admin.metrics.kpi.request_rate")} />
+              <KpiCard title={t("admin.metrics.accept_rate_title")} value={pct(kpis?.accept_rate)} sub={t("admin.metrics.kpi.accept_rate")} />
+              <KpiCard title={t("admin.metrics.chat_rate_title")} value={pct(kpis?.chat_rate)} sub={t("admin.metrics.kpi.chat_rate")} />
             </div>
 
             <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-sm text-neutral-300">Totais (somados por dia)</div>
+              <div className="text-sm text-neutral-300">{t("admin.metrics.totals")}</div>
               <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                <MiniStat label="Unlock" value={totals.unlock_success} />
-                <MiniStat label="Onboard" value={totals.onboarding_done} />
-                <MiniStat label="Intent" value={totals.intent_set} />
-                <MiniStat label="Requests" value={totals.match_request} />
-                <MiniStat label="Accepts" value={totals.match_accept} />
-                <MiniStat label="Chat msgs" value={totals.chat_send_text} />
-                <MiniStat label="Invites" value={totals.invite_create} />
-                <MiniStat label="Active users" value={totals.active_users} />
+                <MiniStat label={t("admin.metrics.unlocks")} value={totals.unlock_success} />
+                <MiniStat label={t("admin.metrics.onboard")} value={totals.onboarding_done} />
+                <MiniStat label={t("admin.metrics.intent")} value={totals.intent_set} />
+                <MiniStat label={t("admin.metrics.requests")} value={totals.match_request} />
+                <MiniStat label={t("admin.metrics.accepts")} value={totals.match_accept} />
+                <MiniStat label={t("admin.metrics.chat_msgs")} value={totals.chat_send_text} />
+                <MiniStat label={t("admin.metrics.invites_count")} value={totals.invite_create} />
+                <MiniStat label={t("admin.metrics.active_users")} value={totals.active_users} />
               </div>
             </div>
 
@@ -124,16 +126,16 @@ export default function AdminMetricsPage() {
               <table className="min-w-full text-sm">
                 <thead className="bg-white/5">
                   <tr className="text-left">
-                    <th className="p-3">Dia</th>
-                    <th className="p-3">Unlock</th>
-                    <th className="p-3">Onboard</th>
-                    <th className="p-3">Intent</th>
-                    <th className="p-3">Discover</th>
-                    <th className="p-3">Req</th>
-                    <th className="p-3">Acc</th>
-                    <th className="p-3">Chat</th>
-                    <th className="p-3">Inv</th>
-                    <th className="p-3">Active</th>
+                    <th className="p-3">{t("admin.metrics.day")}</th>
+                    <th className="p-3">{t("admin.metrics.unlocks")}</th>
+                    <th className="p-3">{t("admin.metrics.onboard")}</th>
+                    <th className="p-3">{t("admin.metrics.intent")}</th>
+                    <th className="p-3">{t("admin.metrics.discover")}</th>
+                    <th className="p-3">{t("admin.metrics.req")}</th>
+                    <th className="p-3">{t("admin.metrics.acc")}</th>
+                    <th className="p-3">{t("admin.metrics.chat")}</th>
+                    <th className="p-3">{t("admin.metrics.inv")}</th>
+                    <th className="p-3">{t("admin.metrics.active")}</th>
                   </tr>
                 </thead>
                 <tbody>

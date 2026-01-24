@@ -6,8 +6,10 @@ import InviteCard from "@/components/InviteCard";
 import { useRouter } from "next/navigation";
 import { setUnlockedCookie } from "@/lib/verificationCookies";
 import { logEvent } from "@/lib/events";
+import { useI18n } from "@/components/I18nProvider";
 
 export default function InvitePage() {
+  const { t } = useI18n();
   const [usage, setUsage] = useState<any>(null);
   const [invites, setInvites] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,7 +31,7 @@ export default function InvitePage() {
       const list = await fetchMyInvites();
       setInvites(list);
     } catch (e: any) {
-      setErr(e?.message ?? "Erro a carregar convites.");
+      setErr(e?.message ?? t("invite.error_load"));
     } finally {
       setLoading(false);
     }
@@ -44,7 +46,7 @@ export default function InvitePage() {
     setCreating(true);
     try {
       if ((usage?.plan ?? "free") !== "premium" && (usage?.invite_week_remaining ?? 0) <= 0) {
-        setErr("Algumas pessoas preferem mais precisao.");
+        setErr(t("invite.paywall"));
         router.push("/premium");
         return;
       }
@@ -52,7 +54,7 @@ export default function InvitePage() {
       await logEvent("invite_create");
       await load();
     } catch (e: any) {
-      setErr(e?.message ?? "Nao foi possivel criar convite.");
+      setErr(e?.message ?? t("invite.error_create"));
     } finally {
       setCreating(false);
     }
@@ -63,9 +65,9 @@ export default function InvitePage() {
       <div className="max-w-xl mx-auto p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Convites</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">{t("invite.title")}</h1>
             <p className="mt-2 text-sm text-neutral-400">
-              Crescimento privado. Sem links publicos.
+              {t("invite.subtitle")}
             </p>
           </div>
 
@@ -80,23 +82,23 @@ export default function InvitePage() {
         {err && <div className="mt-4 text-sm text-red-400">{err}</div>}
 
         {loading ? (
-          <div className="mt-6 text-sm text-neutral-400">A carregar...</div>
+          <div className="mt-6 text-sm text-neutral-400">{t("invite.loading")}</div>
         ) : (
           <>
             {(usage?.plan ?? "free") !== "premium" && (usage?.invite_week_remaining ?? 0) <= 0 ? (
               <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-neutral-300">
-                Algumas pessoas preferem mais precisao.
+                {t("invite.paywall")}
                 <button
                   className="mt-3 w-full rounded-2xl bg-white text-black py-2.5 text-sm font-medium"
                   onClick={() => router.push("/premium")}
                 >
-                  Ativar VERO+
+                  {t("invite.activate")}
                 </button>
               </div>
             ) : null}
             <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
               <div className="flex items-center justify-between">
-                <div className="text-sm text-neutral-300">Restantes esta semana</div>
+                <div className="text-sm text-neutral-300">{t("invite.remaining_week")}</div>
                 <div className="text-sm text-neutral-100 font-medium">
                   {usage?.invite_week_remaining}/{usage?.invite_week_limit}
                 </div>
@@ -107,14 +109,14 @@ export default function InvitePage() {
                 disabled={creating || usage?.invite_week_remaining <= 0}
                 className="mt-4 w-full rounded-2xl bg-white text-black py-2.5 text-sm font-medium disabled:opacity-60"
               >
-                {creating ? "A gerar..." : "Gerar convite"}
+                {creating ? t("invite.creating") : t("invite.create")}
               </button>
 
               <p className="mt-2 text-xs text-neutral-500">
-                Regras: convites sao limitados para manter qualidade e FOMO.
+                {t("invite.rules")}
               </p>
               <p className="mt-2 text-xs text-neutral-500">
-                Convites sao regenerados semanalmente.
+                {t("invite.regen")}
               </p>
             </div>
 

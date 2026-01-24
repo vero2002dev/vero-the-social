@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabaseClient";
 export async function getMyGateState() {
   const { data: auth } = await supabase.auth.getUser();
   const me = auth.user?.id;
-  if (!me) return { unlocked: false, onboarded: false };
+  if (!me) return { unlocked: false, onboarded: false, legalAccepted: false };
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -24,5 +24,24 @@ export async function getMyGateState() {
 
   const onboarded = !!intentRow?.id;
 
-  return { unlocked, onboarded };
+  let legalAccepted = true;
+  const { data: legalVersion } = await supabase
+    .from("legal_versions")
+    .select("terms_version,privacy_version")
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (legalVersion?.terms_version && legalVersion?.privacy_version) {
+    const { data: consent } = await supabase
+      .from("legal_consents")
+      .select("terms_version,privacy_version")
+      .eq("user_id", me)
+      .maybeSingle();
+
+    legalAccepted =
+      consent?.terms_version === legalVersion.terms_version &&
+      consent?.privacy_version === legalVersion.privacy_version;
+  }
+
+  return { unlocked, onboarded, legalAccepted };
 }

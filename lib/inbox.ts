@@ -10,11 +10,7 @@ export type MatchRow = {
 };
 
 export async function fetchPendingMatches() {
-  const { data, error } = await supabase
-    .from("matches")
-    .select("*")
-    .eq("status", "pending")
-    .order("created_at", { ascending: false });
+  const { data, error } = await supabase.rpc("rpc_inbox_pending");
 
   if (error) throw error;
   const rows = (data ?? []).map((row: any) => ({

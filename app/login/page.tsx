@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { useI18n } from "@/components/I18nProvider";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -23,7 +25,17 @@ export default function LoginPage() {
 
     setLoading(false);
 
-    if (error) return setMsg("Erro: " + error.message);
+    if (error) return setMsg(`${t("common.error_prefix")}${error.message}`);
+
+    try {
+      await supabase.rpc("rpc_accept_legal", {
+        p_locale: navigator.language,
+        p_ip: null,
+        p_user_agent: navigator.userAgent,
+      });
+    } catch (e: any) {
+      return setMsg(e?.message ?? t("legal.accept.error_terms"));
+    }
 
     router.push("/");
   }
@@ -33,35 +45,33 @@ export default function LoginPage() {
       <div className="auth-shell">
         <section className="brand-card">
           <span className="brand-pill">VERO</span>
-          <h1>Bem-vindo de volta.</h1>
+          <h1>{t("auth.login.welcome")}</h1>
           <p className="lead">
-            Entra para continuares as conversas e veres novas verificacoes.
+            {t("auth.login.lead")}
           </p>
           <div className="brand-grid">
             <div>
-              <p className="label">Acesso seguro</p>
-              <p className="detail">Sessao protegida e autenticação direta.</p>
+              <p className="label">{t("auth.login.secure_title")}</p>
+              <p className="detail">{t("auth.login.secure_detail")}</p>
             </div>
             <div>
-              <p className="label">Perfis reais</p>
-              <p className="detail">Verificacao rapida para manter qualidade.</p>
+              <p className="label">{t("auth.login.real_title")}</p>
+              <p className="detail">{t("auth.login.real_detail")}</p>
             </div>
           </div>
         </section>
 
         <section className="auth-card">
           <div className="card-header">
-            <h2>Login</h2>
-            <p className="muted">
-              Usa o email da conta para continuar.
-            </p>
+            <h2>{t("auth.login")}</h2>
+            <p className="muted">{t("auth.login.subtitle")}</p>
           </div>
 
           <form onSubmit={onLogin} className="form">
             <label className="field">
-              <span>Email</span>
+              <span>{t("auth.email")}</span>
               <input
-                placeholder="tu@exemplo.com"
+                placeholder={t("auth.email_placeholder")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 type="email"
@@ -69,9 +79,9 @@ export default function LoginPage() {
               />
             </label>
             <label className="field">
-              <span>Password</span>
+              <span>{t("auth.password")}</span>
               <input
-                placeholder="A tua password"
+                placeholder={t("auth.password_placeholder")}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 type="password"
@@ -80,7 +90,7 @@ export default function LoginPage() {
             </label>
 
             <button type="submit" disabled={loading} className="primary">
-              {loading ? "A entrar..." : "Entrar"}
+              {loading ? t("common.logging_in") : t("auth.login.cta")}
             </button>
           </form>
 
@@ -91,7 +101,8 @@ export default function LoginPage() {
           )}
 
           <p className="footer">
-            Não tens conta? <a href="/signup">Criar conta</a>
+            {t("auth.login.no_account")}{" "}
+            <a href="/signup">{t("auth.login.signup_link")}</a>
           </p>
         </section>
       </div>

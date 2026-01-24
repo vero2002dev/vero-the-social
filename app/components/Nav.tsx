@@ -3,15 +3,17 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useI18n } from "@/components/I18nProvider";
 import { isBootstrapAdmin } from "@/lib/admin";
 import { setAdminCookie, setUnlockedCookie, setVerificationCookies } from "@/lib/verificationCookies";
 
 export default function Nav() {
   const [isAuthed, setIsAuthed] = useState(false);
+  const { t } = useI18n();
   const [isAdmin, setIsAdmin] = useState(false);
-  const [verificationStatus, setVerificationStatus] = useState<"loading" | "approved" | "pending" | "rejected">(
-    "loading"
-  );
+  const [verificationStatus, setVerificationStatus] = useState<
+    "loading" | "unverified" | "pending" | "verified" | "failed"
+  >("loading");
 
   useEffect(() => {
     async function loadStatus() {
@@ -20,7 +22,7 @@ export default function Nav() {
       setIsAuthed(!!user);
 
       if (!user) {
-        setVerificationStatus("pending");
+        setVerificationStatus("unverified");
         setVerificationCookies(null, false);
         setUnlockedCookie(false);
         setIsAdmin(false);
@@ -34,7 +36,7 @@ export default function Nav() {
         .eq("id", user.id)
         .maybeSingle();
 
-      const nextStatus = (profile?.verification_status as any) ?? "pending";
+      const nextStatus = (profile?.verification_status as any) ?? "unverified";
       let nextAdmin = !!profile?.is_admin || isBootstrapAdmin(user.email);
       if (!nextAdmin) {
         const { data: adminCheck } = await supabase.rpc("rpc_is_admin");
@@ -52,7 +54,7 @@ export default function Nav() {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsAuthed(!!session);
       if (!session) {
-        setVerificationStatus("pending");
+        setVerificationStatus("unverified");
         setVerificationCookies(null, false);
         setUnlockedCookie(false);
         setIsAdmin(false);
@@ -67,37 +69,37 @@ export default function Nav() {
   return (
     <nav className="flex gap-4 text-sm">
       <Link className="hover:underline" href="/">
-        Home
+        {t("nav.home")}
       </Link>
       {!isAuthed ? (
         <Link className="hover:underline" href="/login">
-          Login
+          {t("nav.login")}
         </Link>
       ) : (
         <>
           <Link className="hover:underline" href="/intent">
-            Intent
+            {t("nav.intent")}
           </Link>
           <Link className="hover:underline" href="/discover">
-            Discover
+            {t("nav.discover")}
           </Link>
           <Link className="hover:underline" href="/dm">
-            Private
+            {t("nav.private")}
           </Link>
           <Link className="hover:underline" href="/inbox">
-            Inbox
+            {t("nav.inbox")}
           </Link>
           <Link className="hover:underline" href="/chats">
-            Chats
+            {t("nav.chats")}
           </Link>
           <Link className="hover:underline" href="/invite">
-            Invite
+            {t("nav.invite")}
           </Link>
           <Link className="hover:underline" href="/premium">
-            Premium
+            {t("nav.premium")}
           </Link>
           <Link className="hover:underline" href="/profile">
-            Profile
+            {t("nav.profile")}
           </Link>
           {isAdmin ? (
             <>

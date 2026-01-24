@@ -3,15 +3,19 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useI18n } from "@/components/I18nProvider";
 
 export default function SignupClient() {
   const router = useRouter();
+  const { t, locale } = useI18n();
   const [token, setToken] = useState("");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [acceptPrivacy, setAcceptPrivacy] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -23,21 +27,34 @@ export default function SignupClient() {
     e.preventDefault();
     setMsg(null);
 
+    if (!acceptTerms || !acceptPrivacy) {
+      setMsg(t("auth.must_accept"));
+      return;
+    }
+
     if (!token) {
-      setMsg("Convite invalido. Abre o link do email novamente.");
+      setMsg(t("auth.signup.invite_invalid"));
       return;
     }
 
     setLoading(true);
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
     });
 
     if (error) {
       setLoading(false);
-      return setMsg("Erro: " + error.message);
+      return setMsg(`${t("common.error_prefix")}${error.message}`);
+    }
+
+    if (data.session?.access_token) {
+      await supabase.rpc("rpc_accept_legal", {
+        p_locale: locale,
+        p_ip: null,
+        p_user_agent: navigator.userAgent,
+      });
     }
 
     const res = await fetch("/api/ensure-avatars-bucket/invite", {
@@ -49,11 +66,11 @@ export default function SignupClient() {
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       setLoading(false);
-      return setMsg(body?.error ?? "Erro ao validar convite.");
+      return setMsg(body?.error ?? t("auth.signup.invite_error"));
     }
 
     setLoading(false);
-    setMsg("Conta criada. Verifica o email para confirmar.");
+    setMsg(t("auth.signup.created_check_email"));
     router.push("/login");
   }
 
@@ -62,33 +79,33 @@ export default function SignupClient() {
       <div className="auth-shell">
         <section className="brand-card">
           <span className="brand-pill">VERO</span>
-          <h1>Cria a tua conta.</h1>
+          <h1>{t("auth.signup.title")}</h1>
           <p className="lead">
-            Entra com convite e completa o registo para comecar a usar o VERO.
+            {t("auth.signup.lead")}
           </p>
           <div className="brand-grid">
             <div>
-              <p className="label">Convites</p>
-              <p className="detail">Acesso controlado para manter qualidade.</p>
+              <p className="label">{t("auth.signup.invites_title")}</p>
+              <p className="detail">{t("auth.signup.invites_detail")}</p>
             </div>
             <div>
-              <p className="label">Seguranca</p>
-              <p className="detail">Confirmacao de email obrigatoria.</p>
+              <p className="label">{t("auth.signup.security_title")}</p>
+              <p className="detail">{t("auth.signup.security_detail")}</p>
             </div>
           </div>
         </section>
 
         <section className="auth-card">
           <div className="card-header">
-            <h2>Signup</h2>
-            <p className="muted">Cria a conta para continuar.</p>
+            <h2>{t("auth.signup.card_title")}</h2>
+            <p className="muted">{t("auth.signup.card_subtitle")}</p>
           </div>
 
           <form onSubmit={onSignup} className="form">
             <label className="field">
-              <span>Email</span>
+              <span>{t("auth.email")}</span>
               <input
-                placeholder="tu@exemplo.com"
+                placeholder={t("auth.email_placeholder")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 type="email"
@@ -96,9 +113,9 @@ export default function SignupClient() {
               />
             </label>
             <label className="field">
-              <span>Password</span>
+              <span>{t("auth.password")}</span>
               <input
-                placeholder="Cria uma password"
+                placeholder={t("auth.signup.password_placeholder")}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 type="password"
@@ -106,8 +123,53 @@ export default function SignupClient() {
               />
             </label>
 
-            <button type="submit" disabled={loading} className="primary">
-              {loading ? "A criar..." : "Criar conta"}
+            <div className="legal">
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={acceptTerms}
+                  onChange={(e) => setAcceptTerms(e.target.checked)}
+                />
+                <span>
+                  {t("legal.accept.terms", {
+                    terms: t("legal.terms"),
+                  })}{" "}
+                  <span className="muted-legal">
+                    (
+                    <a href="/legal/terms" target="_blank" rel="noreferrer">
+                      {t("legal.terms")}
+                    </a>
+                    )
+                  </span>
+                </span>
+              </label>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={acceptPrivacy}
+                  onChange={(e) => setAcceptPrivacy(e.target.checked)}
+                />
+                <span>
+                  {t("legal.accept.privacy", {
+                    privacy: t("legal.privacy"),
+                  })}{" "}
+                  <span className="muted-legal">
+                    (
+                    <a href="/legal/privacy" target="_blank" rel="noreferrer">
+                      {t("legal.privacy")}
+                    </a>
+                    )
+                  </span>
+                </span>
+              </label>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || !acceptTerms || !acceptPrivacy}
+              className="primary"
+            >
+              {loading ? t("common.creating") : t("auth.signup")}
             </button>
           </form>
 
@@ -118,7 +180,7 @@ export default function SignupClient() {
           )}
 
           <p className="footer">
-            Ja tens conta? <a href="/login">Entrar</a>
+            {t("auth.signup.has_account")} <a href="/login">{t("auth.signup.login_link")}</a>
           </p>
         </section>
       </div>
@@ -244,6 +306,38 @@ export default function SignupClient() {
         .form {
           display: grid;
           gap: 14px;
+        }
+
+        .legal {
+          display: grid;
+          gap: 8px;
+          font-size: 13px;
+          color: #2b2b2b;
+        }
+
+        .check {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .check input {
+          width: 16px;
+          height: 16px;
+        }
+
+        .check a {
+          color: #101318;
+          font-weight: 600;
+          text-decoration: none;
+        }
+
+        .check a:hover {
+          text-decoration: underline;
+        }
+
+        .muted-legal {
+          color: #5a5a5a;
         }
 
         .field {

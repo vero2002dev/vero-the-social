@@ -7,12 +7,13 @@ import { isBootstrapAdmin } from "@/lib/admin";
 import { setAdminCookie, setVerificationCookies } from "@/lib/verificationCookies";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useI18n } from "@/components/I18nProvider";
 
 type AdminProfile = {
   id: string;
   username: string | null;
   city: string | null;
-  verification_status: "pending" | "approved" | "rejected" | null;
+  verification_status: "unverified" | "pending" | "verified" | "failed" | null;
   id_doc_path: string | null;
   selfie_path: string | null;
   is_admin: boolean | null;
@@ -27,6 +28,7 @@ export default function AdminPage() {
   );
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
+  const { t } = useI18n();
 
   async function load() {
     setMsg(null);
@@ -46,13 +48,13 @@ export default function AdminPage() {
       .maybeSingle();
 
     if (error) {
-      setMsg("Erro: " + error.message);
+      setMsg(t("admin.error.generic", { msg: error.message }));
       return;
     }
 
     const isAdmin = !!profile?.is_admin || isBootstrapAdmin(user.email);
     setAdminCookie(isAdmin);
-    setVerificationCookies((profile?.verification_status as any) ?? "pending", true);
+    setVerificationCookies((profile?.verification_status as any) ?? "unverified", true);
 
     if (!isAdmin) {
       router.replace("/feed");
@@ -62,10 +64,10 @@ export default function AdminPage() {
     const { data: pending, error: listErr } = await supabase
       .from("profiles")
       .select("id, username, city, verification_status, id_doc_path, selfie_path, is_admin, verified_at")
-      .neq("verification_status", "approved");
+      .neq("verification_status", "verified");
 
     if (listErr) {
-      setMsg("Erro ao carregar pedidos: " + listErr.message);
+      setMsg(t("admin.error.load_requests", { msg: listErr.message }));
       return;
     }
 
@@ -79,17 +81,17 @@ export default function AdminPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  async function updateStatus(userId: string, status: "approved" | "rejected") {
+  async function updateStatus(userId: string, status: "verified" | "failed") {
     setMsg(null);
 
     const payload: Record<string, any> = {
       verification_status: status,
     };
-    if (status === "approved") payload.verified_at = new Date().toISOString();
+    if (status === "verified") payload.verified_at = new Date().toISOString();
 
     const { error } = await supabase.from("profiles").update(payload).eq("id", userId);
     if (error) {
-      setMsg("Erro a atualizar: " + error.message);
+      setMsg(t("admin.error.update", { msg: error.message }));
       return;
     }
 
@@ -105,7 +107,7 @@ export default function AdminPage() {
         .from("verification_ids")
         .createSignedUrl(profile.id_doc_path, 60 * 10);
       if (error) {
-        setMsg("Erro a gerar link ID: " + error.message);
+        setMsg(t("admin.error.link_id", { msg: error.message }));
       } else {
         next.idUrl = data?.signedUrl;
       }
@@ -116,7 +118,7 @@ export default function AdminPage() {
         .from("verification_selfies")
         .createSignedUrl(profile.selfie_path, 60 * 10);
       if (error) {
-        setMsg("Erro a gerar link selfie: " + error.message);
+        setMsg(t("admin.error.link_selfie", { msg: error.message }));
       } else {
         next.selfieUrl = data?.signedUrl;
       }
@@ -125,39 +127,45 @@ export default function AdminPage() {
     setPreviews((prev) => ({ ...prev, [profile.id]: next }));
   }
 
-  if (loading) return <main style={{ padding: 24 }}>A carregar...</main>;
+  if (loading) return <main style={{ padding: 24 }}>{t("admin.loading")}</main>;
 
   return (
     <main style={{ padding: 24 }}>
       <Card>
         <CardHeader>
-          <CardTitle>Admin · Verificacoes</CardTitle>
+          <CardTitle>{t("admin.verify_title")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4">
           {profiles.length === 0 ? (
-            <div className="text-sm opacity-70">Sem pedidos pendentes.</div>
+            <div className="text-sm opacity-70">{t("admin.pending_empty")}</div>
           ) : (
             profiles.map((p) => (
               <div key={p.id} className="rounded-md border border-border p-3 grid gap-2">
-                <div className="font-medium">@{p.username ?? "sem username"}</div>
-                <div className="text-sm opacity-70">{p.city ?? "Sem cidade"}</div>
-                <div className="text-xs opacity-60">Status: {p.verification_status ?? "pending"}</div>
+                <div className="font-medium">@{p.username ?? t("admin.username_missing")}</div>
+                <div className="text-sm opacity-70">{p.city ?? t("admin.city_missing")}</div>
+                <div className="text-xs opacity-60">
+                  {t("admin.status_label")}: {p.verification_status ?? "pending"}
+                </div>
                 <div className="text-xs">
-                  <div>ID: {p.id_doc_path ?? "sem ficheiro"}</div>
-                  <div>Selfie: {p.selfie_path ?? "sem ficheiro"}</div>
+                  <div>
+                    {t("admin.id_label")}: {p.id_doc_path ?? t("admin.file_missing")}
+                  </div>
+                  <div>
+                    {t("admin.selfie_label")}: {p.selfie_path ?? t("admin.file_missing")}
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={() => loadPreviews(p)}>
-                    Gerar links
+                    {t("admin.generate_links")}
                   </Button>
                   {previews[p.id]?.idUrl ? (
                     <a className="text-sm underline" href={previews[p.id]?.idUrl} target="_blank">
-                      Ver ID
+                      {t("admin.view_id")}
                     </a>
                   ) : null}
                   {previews[p.id]?.selfieUrl ? (
                     <a className="text-sm underline" href={previews[p.id]?.selfieUrl} target="_blank">
-                      Ver selfie
+                      {t("admin.view_selfie")}
                     </a>
                   ) : null}
                 </div>
@@ -180,9 +188,9 @@ export default function AdminPage() {
                   </div>
                 )}
                 <div className="flex gap-2">
-                  <Button onClick={() => updateStatus(p.id, "approved")}>Aprovar</Button>
-                  <Button variant="secondary" onClick={() => updateStatus(p.id, "rejected")}>
-                    Rejeitar
+                  <Button onClick={() => updateStatus(p.id, "verified")}>{t("admin.approve")}</Button>
+                  <Button variant="secondary" onClick={() => updateStatus(p.id, "failed")}>
+                    {t("admin.reject")}
                   </Button>
                 </div>
               </div>
