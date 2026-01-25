@@ -15,8 +15,6 @@ import {
   rpcRespondReveal,
   type RevealRow,
 } from "@/lib/reveals";
-import { rpcUsage } from "@/lib/invites";
-import { setUnlockedCookie } from "@/lib/verificationCookies";
 import { logEvent } from "@/lib/events";
 import AppShell from "@/components/AppShell";
 import Skeleton from "@/components/Skeleton";
@@ -55,13 +53,6 @@ export default function InboxPage() {
       const userId = auth.user?.id;
       if (!userId) throw new Error(t("common.session_invalid"));
       setMe(userId);
-
-      const usage = await rpcUsage();
-      setUnlockedCookie(!!usage.unlocked);
-      if (!usage.unlocked) {
-        router.push("/unlock");
-        return;
-      }
 
       const pending = await fetchPendingMatches();
       setMatches(pending);

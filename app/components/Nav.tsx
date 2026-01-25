@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useI18n } from "@/components/I18nProvider";
 import { isBootstrapAdmin } from "@/lib/admin";
-import { setAdminCookie, setUnlockedCookie, setVerificationCookies } from "@/lib/verificationCookies";
+import { setAdminCookie, setVerificationCookies } from "@/lib/verificationCookies";
 
 export default function Nav() {
   const [isAuthed, setIsAuthed] = useState(false);
@@ -24,7 +24,6 @@ export default function Nav() {
       if (!user) {
         setVerificationStatus("unverified");
         setVerificationCookies(null, false);
-        setUnlockedCookie(false);
         setIsAdmin(false);
         setAdminCookie(false);
         return;
@@ -32,7 +31,7 @@ export default function Nav() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("verification_status, is_admin, unlocked")
+        .select("verification_status, is_admin")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -46,7 +45,6 @@ export default function Nav() {
       setIsAdmin(nextAdmin);
       setVerificationCookies(nextStatus, true);
       setAdminCookie(nextAdmin);
-      setUnlockedCookie(!!profile?.unlocked);
     }
 
     loadStatus().catch(() => {});
@@ -56,7 +54,6 @@ export default function Nav() {
       if (!session) {
         setVerificationStatus("unverified");
         setVerificationCookies(null, false);
-        setUnlockedCookie(false);
         setIsAdmin(false);
         setAdminCookie(false);
       }

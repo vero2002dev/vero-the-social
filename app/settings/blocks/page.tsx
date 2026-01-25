@@ -33,7 +33,6 @@ export default function BlocksPage() {
       try {
         const g = await getMyGateState();
         if (!g.legalAccepted) return router.replace("/legal/terms");
-        if (!g.unlocked) return router.replace("/unlock");
         if (!g.onboarded) return router.replace("/onboarding");
         await load();
       } catch {

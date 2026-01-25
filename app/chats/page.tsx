@@ -5,7 +5,6 @@ import { fetchActiveChats, type ChatListItem as Item } from "@/lib/chats";
 import ChatListItem from "@/components/ChatListItem";
 import { useRouter } from "next/navigation";
 import { rpcUsage } from "@/lib/invites";
-import { setUnlockedCookie } from "@/lib/verificationCookies";
 import AppShell from "@/components/AppShell";
 import Skeleton from "@/components/Skeleton";
 import Toast from "@/components/Toast";
@@ -30,12 +29,7 @@ export default function ChatsPage() {
         router.push("/legal/terms");
         return;
       }
-      const usage = await rpcUsage();
-      setUnlockedCookie(!!usage.unlocked);
-      if (!usage.unlocked) {
-        router.push("/unlock");
-        return;
-      }
+      await rpcUsage();
       setPlan(usage.plan ?? "free");
       const data = await fetchActiveChats();
       setItems(data);

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { fetchMyInvites, rpcCreateInvite, rpcUsage } from "@/lib/invites";
 import InviteCard from "@/components/InviteCard";
 import { useRouter } from "next/navigation";
-import { setUnlockedCookie } from "@/lib/verificationCookies";
 import { logEvent } from "@/lib/events";
 import { useI18n } from "@/components/I18nProvider";
 
@@ -23,11 +22,7 @@ export default function InvitePage() {
     try {
       const u = await rpcUsage();
       setUsage(u);
-      setUnlockedCookie(!!u?.unlocked);
-      if (!u?.unlocked) {
-        router.push("/unlock");
-        return;
-      }
+      // invites available for all logged-in users
       const list = await fetchMyInvites();
       setInvites(list);
     } catch (e: any) {

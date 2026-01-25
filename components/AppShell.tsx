@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useI18n } from "@/components/I18nProvider";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function AppShell({
   title,
@@ -14,6 +15,7 @@ export default function AppShell({
   children: React.ReactNode;
 }) {
   const path = usePathname();
+  const router = useRouter();
   const { t } = useI18n();
 
   const tabs = [
@@ -28,7 +30,18 @@ export default function AppShell({
       <header className="sticky top-0 z-10 bg-black/80 backdrop-blur border-b border-white/10">
         <div className="max-w-xl mx-auto px-5 py-4 flex items-center justify-between gap-3">
           <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
-          <div>{right}</div>
+          <div className="flex items-center gap-3">
+            {right}
+            <button
+              className="text-xs text-neutral-300 hover:text-white"
+              onClick={async () => {
+                await supabase.auth.signOut();
+                router.replace("/login");
+              }}
+            >
+              {t("profile.logout")}
+            </button>
+          </div>
         </div>
       </header>
 

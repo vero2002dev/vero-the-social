@@ -29,7 +29,6 @@ export default function SearchPage() {
     (async () => {
       const g = await getMyGateState();
       if (!g.legalAccepted) router.replace("/legal/terms");
-      else if (!g.unlocked) router.replace("/unlock");
       else if (!g.onboarded) router.replace("/onboarding");
     })();
   }, [router]);

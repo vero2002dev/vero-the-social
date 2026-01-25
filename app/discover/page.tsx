@@ -44,7 +44,6 @@ export default function DiscoverPage() {
     try {
       const g = await getMyGateState();
       if (!g.legalAccepted) return router.replace("/legal/terms");
-      if (!g.unlocked) return router.replace("/unlock");
       if (!g.onboarded) return router.replace("/onboarding");
 
       const u = await rpcUsage();

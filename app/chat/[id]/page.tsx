@@ -16,7 +16,6 @@ import { signedChatMediaUrl } from "@/lib/chatMedia";
 import { hasAcceptedMediaRevealForConversation } from "@/lib/reveals";
 import ImagePickerButton from "@/components/ImagePickerButton";
 import { rpcUsage } from "@/lib/invites";
-import { setUnlockedCookie } from "@/lib/verificationCookies";
 import { logEvent } from "@/lib/events";
 import SignalsList from "@/components/SignalsList";
 import { getMyGateState } from "@/lib/profileGate";
@@ -70,12 +69,7 @@ export default function ChatPage() {
         router.push("/legal/terms");
         return;
       }
-      const usage = await rpcUsage();
-      setUnlockedCookie(!!usage.unlocked);
-      if (!usage.unlocked) {
-        router.push("/unlock");
-        return;
-      }
+      await rpcUsage();
       setPlan(usage.plan ?? "free");
       const conv = await fetchConversation(conversationId);
       const { data: auth } = await supabase.auth.getUser();

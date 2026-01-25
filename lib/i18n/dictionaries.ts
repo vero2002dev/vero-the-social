@@ -180,6 +180,7 @@ export const DICTS: Record<Locale, Dict> = {
     "auth.signup.invite_invalid": "Convite invalido. Abre o link do email novamente.",
     "auth.signup.invite_error": "Erro ao validar convite.",
     "auth.signup.created_check_email": "Conta criada. Verifica o email para confirmar.",
+    "auth.signup.created_check_email_detail": "Conta criada. Confirma o email e faz login para continuar.",
     "auth.signup.has_account": "Ja tens conta?",
     "auth.signup.login_link": "Entrar",
     "auth.email": "Email",
@@ -503,6 +504,7 @@ export const DICTS: Record<Locale, Dict> = {
     "inbox.error.accept": "Erro ao aceitar.",
 
     "unlock.title": "Entrar no VERO",
+    "unlock.public_launch": "Convites foram desativados. Faz login ou cria conta para continuar.",
     "unlock.subtitle": "VERO e por convite. Introduz o teu codigo.",
     "unlock.code_placeholder": "Codigo",
     "unlock.cta": "Desbloquear",
@@ -802,6 +804,7 @@ export const DICTS: Record<Locale, Dict> = {
     "auth.signup.invite_invalid": "Invalid invite. Open the email link again.",
     "auth.signup.invite_error": "Invite validation failed.",
     "auth.signup.created_check_email": "Account created. Check your email to confirm.",
+    "auth.signup.created_check_email_detail": "Account created. Check your email and log in to continue.",
     "auth.signup.has_account": "Already have an account?",
     "auth.signup.login_link": "Log in",
     "auth.email": "Email",
@@ -1074,6 +1077,7 @@ export const DICTS: Record<Locale, Dict> = {
     "inbox.error.accept": "Failed to accept.",
 
     "unlock.title": "Enter VERO",
+    "unlock.public_launch": "Invites are disabled. Log in or create an account to continue.",
     "unlock.subtitle": "VERO is invite-only. Enter your code.",
     "unlock.code_placeholder": "Code",
     "unlock.cta": "Unlock",
@@ -1365,6 +1369,7 @@ export const DICTS: Record<Locale, Dict> = {
     "auth.signup.invite_invalid": "Invitación inválida. Abre de nuevo el link del email.",
     "auth.signup.invite_error": "Error al validar la invitación.",
     "auth.signup.created_check_email": "Cuenta creada. Revisa tu email para confirmar.",
+    "auth.signup.created_check_email_detail": "Cuenta creada. Confirma el email y entra para continuar.",
     "auth.signup.has_account": "¿Ya tienes cuenta?",
     "auth.signup.login_link": "Entrar",
     "auth.email": "Email",
@@ -1453,6 +1458,7 @@ export const DICTS: Record<Locale, Dict> = {
     "inbox.error.accept": "Error al aceptar.",
 
     "unlock.title": "Entrar en VERO",
+    "unlock.public_launch": "Las invitaciones están desactivadas. Inicia sesión o crea una cuenta.",
     "unlock.subtitle": "VERO es por invitación. Introduce tu código.",
     "unlock.code_placeholder": "Código",
     "unlock.cta": "Desbloquear",
@@ -1894,6 +1900,7 @@ export const DICTS: Record<Locale, Dict> = {
     "auth.signup.invite_invalid": "Invitation invalide. Ouvre à nouveau le lien de l’email.",
     "auth.signup.invite_error": "Échec de la validation de l’invitation.",
     "auth.signup.created_check_email": "Compte créé. Vérifie ton email pour confirmer.",
+    "auth.signup.created_check_email_detail": "Compte créé. Confirme ton email et connecte-toi pour continuer.",
     "auth.signup.has_account": "Tu as déjà un compte ?",
     "auth.signup.login_link": "Se connecter",
     "auth.email": "Email",
@@ -1982,6 +1989,7 @@ export const DICTS: Record<Locale, Dict> = {
     "inbox.error.accept": "Erreur lors de l’acceptation.",
 
     "unlock.title": "Entrer dans VERO",
+    "unlock.public_launch": "Les invitations sont désactivées. Connecte-toi ou crée un compte.",
     "unlock.subtitle": "VERO fonctionne par invitation. Entre ton code.",
     "unlock.code_placeholder": "Code",
     "unlock.cta": "Déverrouiller",

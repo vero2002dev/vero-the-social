@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useI18n } from "@/components/I18nProvider";
@@ -8,8 +8,6 @@ import { useI18n } from "@/components/I18nProvider";
 export default function SignupClient() {
   const router = useRouter();
   const { t, locale } = useI18n();
-  const [token, setToken] = useState("");
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -17,23 +15,12 @@ export default function SignupClient() {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [acceptPrivacy, setAcceptPrivacy] = useState(false);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    setToken(params.get("token") || "");
-  }, []);
-
   async function onSignup(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);
 
     if (!acceptTerms || !acceptPrivacy) {
       setMsg(t("auth.must_accept"));
-      return;
-    }
-
-    if (!token) {
-      setMsg(t("auth.signup.invite_invalid"));
       return;
     }
 
@@ -55,23 +42,14 @@ export default function SignupClient() {
         p_ip: null,
         p_user_agent: navigator.userAgent,
       });
-    }
-
-    const res = await fetch("/api/ensure-avatars-bucket/invite", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, email }),
-    });
-
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
       setLoading(false);
-      return setMsg(body?.error ?? t("auth.signup.invite_error"));
+      router.push("/onboarding");
+      return;
     }
 
     setLoading(false);
-    setMsg(t("auth.signup.created_check_email"));
-    router.push("/login");
+    setMsg(t("auth.signup.created_check_email_detail"));
+    router.push("/login?from=signup");
   }
 
   return (

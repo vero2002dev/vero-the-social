@@ -7,11 +7,11 @@ export async function getMyGateState() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("unlocked")
+    .select("is_admin")
     .eq("id", me)
     .maybeSingle();
 
-  const unlocked = !!profile?.unlocked;
+  const unlocked = true;
 
   const { data: intentRow } = await supabase
     .from("intents")
@@ -22,7 +22,7 @@ export async function getMyGateState() {
     .limit(1)
     .maybeSingle();
 
-  const onboarded = !!intentRow?.id;
+  const onboarded = !!intentRow?.id || !!profile?.is_admin;
 
   let legalAccepted = true;
   const { data: legalVersion } = await supabase
@@ -43,5 +43,5 @@ export async function getMyGateState() {
       consent?.privacy_version === legalVersion.privacy_version;
   }
 
-  return { unlocked, onboarded, legalAccepted };
+  return { unlocked, onboarded, legalAccepted, isAdmin: !!profile?.is_admin };
 }
