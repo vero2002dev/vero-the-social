@@ -110,7 +110,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing access token" }, { status: 401 });
     }
 
-    const { admin, adminUid } = await requireAdminFromBearer(bearer);
+    const { admin, uid } = await requireAdminFromBearer(bearer);
     const body = await req.json().catch(() => ({}));
     const action = body?.action as Action | undefined;
 
@@ -195,7 +195,7 @@ export async function POST(req: Request) {
         .update({
           status: "approved",
           reviewed_at: new Date().toISOString(),
-          reviewed_by: adminUid,
+          reviewed_by: uid,
           review_reason: null,
         })
         .eq("id", requestId);
@@ -251,7 +251,7 @@ export async function POST(req: Request) {
         .update({
           status: "rejected",
           reviewed_at: new Date().toISOString(),
-          reviewed_by: adminUid,
+          reviewed_by: uid,
           review_reason: reason,
         })
         .eq("id", requestId);
