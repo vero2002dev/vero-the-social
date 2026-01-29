@@ -3,11 +3,19 @@ import { supabase } from "@/lib/supabaseClient";
 export async function getMyGateState() {
   const { data: auth } = await supabase.auth.getUser();
   const me = auth.user?.id;
-  if (!me) return { unlocked: false, onboarded: false, legalAccepted: false };
+  if (!me) {
+    return {
+      unlocked: false,
+      onboarded: false,
+      legalAccepted: false,
+      adultConfirmed: false,
+      isAdmin: false,
+    };
+  }
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("is_admin")
+    .select("is_admin,is_adult_confirmed")
     .eq("id", me)
     .maybeSingle();
 
@@ -43,5 +51,7 @@ export async function getMyGateState() {
       consent?.privacy_version === legalVersion.privacy_version;
   }
 
-  return { unlocked, onboarded, legalAccepted, isAdmin: !!profile?.is_admin };
+  const adultConfirmed = !!profile?.is_adult_confirmed;
+
+  return { unlocked, onboarded, legalAccepted, adultConfirmed, isAdmin: !!profile?.is_admin };
 }
