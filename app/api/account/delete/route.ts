@@ -103,8 +103,7 @@ export async function POST(req: Request) {
         storage_purge_failed: true,
         storage_purge_error: purgeError,
       })
-      .eq("user_id", userId)
-      .catch(() => null);
+      .eq("user_id", userId);
   }
 
   const { error: delErr } = await sb.auth.admin.deleteUser(userId);
