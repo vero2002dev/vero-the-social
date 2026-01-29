@@ -21,6 +21,7 @@ import SignalsList from "@/components/SignalsList";
 import { getMyGateState } from "@/lib/profileGate";
 import { useI18n } from "@/components/I18nProvider";
 import { resolveI18nError } from "@/lib/i18n/resolveError";
+import ReportModal from "@/components/ReportModal";
 
 export default function ChatPage() {
   const params = useParams();
@@ -29,6 +30,7 @@ export default function ChatPage() {
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [blocked, setBlocked] = useState(false);
   const [messages, setMessages] = useState<MessageRow[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
@@ -41,8 +43,9 @@ export default function ChatPage() {
   const [nudgeShown, setNudgeShown] = useState<{ first?: boolean; stale?: boolean }>({});
   const [plan, setPlan] = useState<string>("free");
   const [blocking, setBlocking] = useState(false);
-  const [reporting, setReporting] = useState(false);
   const [meId, setMeId] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportMessageId, setReportMessageId] = useState<number | null>(null);
   const [signals, setSignals] = useState<
     { id: number; author: string; text?: string | null; image_path?: string | null; created_at: string }[]
   >([]);
@@ -62,6 +65,7 @@ export default function ChatPage() {
 
   async function load() {
     setErr(null);
+    setBlocked(false);
     setLoading(true);
     try {
       const gate = await getMyGateState();
@@ -69,8 +73,12 @@ export default function ChatPage() {
         router.push("/legal/terms");
         return;
       }
-      await rpcUsage();
-      setPlan(usage.plan ?? "free");
+      if (!gate.adultConfirmed) {
+        router.push("/adult");
+        return;
+      }
+      const usage = await rpcUsage();
+      setPlan(usage?.plan ?? "free");
       const conv = await fetchConversation(conversationId);
       const { data: auth } = await supabase.auth.getUser();
       const me = auth.user?.id ?? null;
@@ -100,7 +108,12 @@ export default function ChatPage() {
         setStarterPrompts((data ?? []) as any[]);
       }
     } catch (e: any) {
-      setErr(resolveI18nError(t, e, t("chat.error.open")));
+      if (e?.message === "blocked_or_not_allowed") {
+        setBlocked(true);
+        setErr(null);
+      } else {
+        setErr(resolveI18nError(t, e, t("chat.error.open")));
+      }
     } finally {
       setLoading(false);
     }
@@ -247,6 +260,12 @@ export default function ChatPage() {
   return (
     <main className="min-h-screen bg-black text-white flex flex-col">
       <div className="max-w-xl w-full mx-auto flex-1 flex flex-col">
+        <ReportModal
+          open={reportOpen}
+          onClose={() => setReportOpen(false)}
+          targetType="message"
+          targetId={reportMessageId}
+        />
         <div className="p-6 border-b border-white/10 flex items-center justify-between gap-3">
           <button
             className="text-sm text-neutral-300 hover:text-white"
@@ -257,102 +276,91 @@ export default function ChatPage() {
 
           <div className="font-medium">{t("chat.title")}</div>
 
-          <div className="flex items-center gap-2">
-            <button
-              className="rounded-2xl border border-white/10 px-3 py-2 text-xs hover:border-white/20 disabled:opacity-60"
-              onClick={async () => {
-                if (!otherUserId) return;
-                const reason = window.prompt(
-                  t("chat.report.prompt"),
-                  t("chat.report.default_reason")
-                );
-                if (!reason) return;
-                setReporting(true);
-                try {
-                  await supabase.rpc("rpc_report_user", {
-                    p_reported: otherUserId,
-                    p_reason: reason,
-                    p_details: "",
-                  });
-                  setRevealMsg(t("chat.report.sent"));
-                } finally {
-                  setReporting(false);
-                }
-              }}
-              disabled={!otherUserId || reporting}
-            >
-              {t("chat.report")}
-            </button>
-            <button
-              className="rounded-2xl border border-white/10 px-3 py-2 text-xs hover:border-white/20 disabled:opacity-60"
-              onClick={async () => {
-                if (!otherUserId) return;
-                setBlocking(true);
-                try {
-                  await supabase.rpc("rpc_block_user", { p_blocked: otherUserId });
-                  router.replace("/chats");
-                } finally {
-                  setBlocking(false);
-                }
-              }}
-              disabled={!otherUserId || blocking}
-            >
-              {t("chat.block")}
-            </button>
-            <button
-              className="rounded-2xl border border-white/10 px-3 py-2 text-xs hover:border-white/20 disabled:opacity-60"
-              onClick={async () => {
-                if (!otherUserId) return;
-                try {
-                  await rpcRequestReveal(otherUserId, "profile");
-                  setRevealMsg(t("chat.reveal.sent_profile"));
-                  setRevealState((prev) => ({ ...prev, profile: true }));
-                  setTimeout(
-                    () => setRevealState((prev) => ({ ...prev, profile: false })),
-                    2500
-                  );
-                } catch (e: any) {
-                  setRevealMsg(e?.message ?? t("chat.error.reveal"));
-                }
-              }}
-              disabled={!otherUserId}
-              style={revealState.profile ? { opacity: 0.65 } : undefined}
-            >
-              {revealState.profile ? t("chat.reveal.done") : t("chat.reveal.profile")}
-            </button>
-            <button
-              className="rounded-2xl border border-white/10 px-3 py-2 text-xs hover:border-white/20 disabled:opacity-60"
-              onClick={async () => {
-                if (!otherUserId) return;
-                try {
-                  await rpcRequestReveal(otherUserId, "media");
-                  setRevealMsg(t("chat.reveal.sent_media"));
-                  setRevealState((prev) => ({ ...prev, media: true }));
-                  setTimeout(
-                    () => setRevealState((prev) => ({ ...prev, media: false })),
-                    2500
-                  );
-                } catch (e: any) {
-                  setRevealMsg(e?.message ?? t("chat.error.reveal"));
-                }
-              }}
-              disabled={!otherUserId}
-              style={revealState.media ? { opacity: 0.65 } : undefined}
-            >
-              {revealState.media ? t("chat.reveal.done") : t("chat.reveal.media")}
-            </button>
-            <button
-              className="rounded-2xl border border-white/10 px-4 py-2 text-sm hover:border-white/20 disabled:opacity-60"
-              onClick={refresh}
-              disabled={refreshing}
-            >
-              {refreshing ? "…" : t("chat.update")}
-            </button>
-          </div>
+          {!blocked ? (
+            <div className="flex items-center gap-2">
+              <button
+                className="rounded-2xl border border-white/10 px-3 py-2 text-xs hover:border-white/20 disabled:opacity-60"
+                onClick={async () => {
+                  if (!otherUserId) return;
+                  setBlocking(true);
+                  try {
+                    await supabase.rpc("rpc_block_user", { p_blocked: otherUserId });
+                    router.replace("/chats");
+                  } finally {
+                    setBlocking(false);
+                  }
+                }}
+                disabled={!otherUserId || blocking}
+              >
+                {t("chat.block")}
+              </button>
+              <button
+                className="rounded-2xl border border-white/10 px-3 py-2 text-xs hover:border-white/20 disabled:opacity-60"
+                onClick={async () => {
+                  if (!otherUserId) return;
+                  try {
+                    await rpcRequestReveal(otherUserId, "profile");
+                    setRevealMsg(t("chat.reveal.sent_profile"));
+                    setRevealState((prev) => ({ ...prev, profile: true }));
+                    setTimeout(
+                      () => setRevealState((prev) => ({ ...prev, profile: false })),
+                      2500
+                    );
+                  } catch (e: any) {
+                    setRevealMsg(e?.message ?? t("chat.error.reveal"));
+                  }
+                }}
+                disabled={!otherUserId}
+                style={revealState.profile ? { opacity: 0.65 } : undefined}
+              >
+                {revealState.profile ? t("chat.reveal.done") : t("chat.reveal.profile")}
+              </button>
+              <button
+                className="rounded-2xl border border-white/10 px-3 py-2 text-xs hover:border-white/20 disabled:opacity-60"
+                onClick={async () => {
+                  if (!otherUserId) return;
+                  try {
+                    await rpcRequestReveal(otherUserId, "media");
+                    setRevealMsg(t("chat.reveal.sent_media"));
+                    setRevealState((prev) => ({ ...prev, media: true }));
+                    setTimeout(
+                      () => setRevealState((prev) => ({ ...prev, media: false })),
+                      2500
+                    );
+                  } catch (e: any) {
+                    setRevealMsg(e?.message ?? t("chat.error.reveal"));
+                  }
+                }}
+                disabled={!otherUserId}
+                style={revealState.media ? { opacity: 0.65 } : undefined}
+              >
+                {revealState.media ? t("chat.reveal.done") : t("chat.reveal.media")}
+              </button>
+              <button
+                className="rounded-2xl border border-white/10 px-4 py-2 text-sm hover:border-white/20 disabled:opacity-60"
+                onClick={refresh}
+                disabled={refreshing}
+              >
+                {refreshing ? "…" : t("chat.update")}
+              </button>
+            </div>
+          ) : null}
         </div>
         <div className="px-6 pt-2 text-xs text-neutral-500">{t("chat.hint")}</div>
 
         <div className="flex-1 p-6 overflow-y-auto pb-40">
+          {!loading && blocked ? (
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+              <div className="font-medium">{t("chat.blocked_title")}</div>
+              <div className="mt-1 text-sm text-neutral-400">{t("chat.blocked_sub")}</div>
+              <button
+                onClick={() => router.push("/chats")}
+                className="mt-4 w-full rounded-2xl border border-white/10 py-2.5 text-sm text-neutral-200 hover:border-white/20"
+              >
+                {t("chat.blocked_cta")}
+              </button>
+            </div>
+          ) : null}
           {err && <div className="mb-4 text-sm text-red-400">{err}</div>}
           {revealMsg && <div className="mb-4 text-sm text-neutral-400">{revealMsg}</div>}
 
@@ -434,14 +442,14 @@ export default function ChatPage() {
             ) : null
           ) : null}
 
-          {loading ? (
+          {!blocked && loading ? (
             <div className="text-sm text-neutral-400">{t("common.loading")}</div>
-          ) : messages.length === 0 ? (
+          ) : !blocked && messages.length === 0 ? (
             <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
               <div className="font-medium">{t("tone.silence_choice")}</div>
               <div className="mt-1 text-sm text-neutral-400">{t("chat.hint")}</div>
             </div>
-          ) : (
+          ) : !blocked ? (
             <div className="space-y-3">
               {messages.map((m) => (
                 <div
@@ -467,28 +475,39 @@ export default function ChatPage() {
                       <span className="text-neutral-400">{t("chat.image_private")}</span>
                     )}
                   </div>
+                  <button
+                    onClick={() => {
+                      setReportMessageId(m.id);
+                      setReportOpen(true);
+                    }}
+                    className="mt-3 text-xs text-neutral-400 hover:text-white"
+                  >
+                    {t("report.message")}
+                  </button>
                 </div>
               ))}
             </div>
-          )}
+          ) : null}
         </div>
 
-        <div className="fixed bottom-0 left-0 right-0 z-20">
-          <div className="max-w-xl mx-auto px-4 pb-2">
-            <div className="rounded-2xl border border-white/10 bg-black/90 backdrop-blur">
-              <div className="px-4 py-2 text-xs text-neutral-500 flex items-center justify-between border-b border-white/10">
-                <span>
-                  {canSendMedia ? t("chat.media.unlocked") : t("chat.media.locked")}
-                </span>
-                <ImagePickerButton
-                  onPick={onPickImage}
-                  disabled={!canSendMedia || sendingImage || loading}
-                />
+        {!blocked ? (
+          <div className="fixed bottom-0 left-0 right-0 z-20">
+            <div className="max-w-xl mx-auto px-4 pb-2">
+              <div className="rounded-2xl border border-white/10 bg-black/90 backdrop-blur">
+                <div className="px-4 py-2 text-xs text-neutral-500 flex items-center justify-between border-b border-white/10">
+                  <span>
+                    {canSendMedia ? t("chat.media.unlocked") : t("chat.media.locked")}
+                  </span>
+                  <ImagePickerButton
+                    onPick={onPickImage}
+                    disabled={!canSendMedia || sendingImage || loading}
+                  />
+                </div>
+                <ChatComposer onSend={onSend} disabled={loading} showBorder={false} />
               </div>
-              <ChatComposer onSend={onSend} disabled={loading} showBorder={false} />
             </div>
           </div>
-        </div>
+        ) : null}
       </div>
     </main>
   );
