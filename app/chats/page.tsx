@@ -4,13 +4,13 @@ import { useEffect, useState } from "react";
 import { fetchActiveChats, type ChatListItem as Item } from "@/lib/chats";
 import ChatListItem from "@/components/ChatListItem";
 import { useRouter } from "next/navigation";
-import { rpcUsage } from "@/lib/invites";
 import AppShell from "@/components/AppShell";
 import Skeleton from "@/components/Skeleton";
 import Toast from "@/components/Toast";
 import { getMyGateState } from "@/lib/profileGate";
 import { useI18n } from "@/components/I18nProvider";
 import { resolveI18nError } from "@/lib/i18n/resolveError";
+import { rpcUsage } from "@/lib/invites";
 
 export default function ChatsPage() {
   const [items, setItems] = useState<Item[]>([]);
@@ -29,8 +29,12 @@ export default function ChatsPage() {
         router.push("/legal/terms");
         return;
       }
-      await rpcUsage();
-      setPlan(usage.plan ?? "free");
+      if (!gate.adultConfirmed) {
+        router.push("/adult");
+        return;
+      }
+      const usage = await rpcUsage();
+      setPlan(usage?.plan ?? "free");
       const data = await fetchActiveChats();
       setItems(data);
     } catch (e: any) {
