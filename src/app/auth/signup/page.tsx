@@ -1,0 +1,81 @@
+'use client';
+
+import Link from "next/link";
+import { useState } from "react";
+
+export default function SignupPage() {
+    const [showPassword, setShowPassword] = useState(false);
+
+    return (
+        <div className="flex h-screen w-full flex-col overflow-hidden bg-background-light dark:bg-background-dark font-display antialiased text-slate-900 dark:text-white selection:bg-primary selection:text-white">
+            <div className="relative flex h-full w-full flex-col overflow-y-auto justify-between no-scrollbar">
+                {/* Background Texture/Gradient (Subtle) */}
+                <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#1f2928] via-transparent to-transparent"></div>
+
+                {/* Main Content Wrapper */}
+                <div className="flex-1 flex flex-col items-center justify-center px-6 w-full max-w-md mx-auto z-10">
+
+                    {/* Logo Section */}
+                    <div className="w-full flex flex-col items-center mb-12">
+                        <h1 className="text-white tracking-tight text-[40px] font-bold leading-none text-center">VERO</h1>
+                        <div className="w-8 h-1 bg-primary mt-2 rounded-full opacity-80"></div>
+                    </div>
+
+                    {/* Form Section */}
+                    <div className="w-full space-y-5">
+                        {/* Email Field */}
+                        <div className="group relative">
+                            <label className="block text-sm font-medium text-gray-400 mb-1.5 ml-1" htmlFor="email">Email</label>
+                            <div className="relative flex items-center">
+                                <input
+                                    className="block w-full rounded-lg border border-transparent bg-[#121212] py-3.5 px-4 text-white placeholder-gray-600 focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200 ease-out sm:text-sm sm:leading-6"
+                                    id="email"
+                                    placeholder="exemplo@email.com"
+                                    type="email"
+                                />
+                                <span className="absolute right-3 text-gray-500 material-symbols-outlined text-[20px]">mail</span>
+                            </div>
+                        </div>
+
+                        {/* Password Field */}
+                        <div className="group relative">
+                            <label className="block text-sm font-medium text-gray-400 mb-1.5 ml-1" htmlFor="password">Password</label>
+                            <div className="relative flex items-center">
+                                <input
+                                    className="block w-full rounded-lg border border-transparent bg-[#121212] py-3.5 px-4 text-white placeholder-gray-600 focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200 ease-out sm:text-sm sm:leading-6 pr-10"
+                                    id="password"
+                                    placeholder="••••••••"
+                                    type={showPassword ? "text" : "password"}
+                                />
+                                <button
+                                    className="absolute right-3 text-gray-500 hover:text-white transition-colors flex items-center justify-center focus:outline-none"
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                >
+                                    <span className="material-symbols-outlined text-[20px]">{showPassword ? 'visibility_off' : 'visibility'}</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Submit Button */}
+                        <Link href="/onboarding/choose-profile-type" className="block w-full">
+                            <button className="w-full mt-2 flex items-center justify-center rounded-lg bg-primary py-3.5 px-4 text-sm font-bold text-white shadow-sm hover:bg-[#488a7c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-colors duration-200 tracking-wide uppercase">
+                                Criar conta
+                            </button>
+                        </Link>
+                    </div>
+                </div>
+
+                {/* Footer / Login Link */}
+                <div className="w-full p-6 text-center pb-10 z-10">
+                    <p className="text-sm text-gray-500">
+                        Já tens conta?
+                        <Link href="/auth/login" className="font-semibold text-white hover:text-primary hover:underline transition-colors ml-1">
+                            Entrar
+                        </Link>
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+}
