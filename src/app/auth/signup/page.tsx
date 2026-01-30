@@ -2,9 +2,64 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 
 export default function SignupPage() {
     const [showPassword, setShowPassword] = useState(false);
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [success, setSuccess] = useState(false);
+    const router = useRouter();
+    const supabase = createClient();
+
+    const handleSignup = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+
+        try {
+            const { error } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    emailRedirectTo: `${location.origin}/auth/callback`,
+                },
+            });
+
+            if (error) {
+                setError(error.message);
+            } else {
+                setSuccess(true);
+            }
+        } catch (err) {
+            setError("Ocorreu um erro inesperado.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (success) {
+        return (
+            <div className="flex h-screen w-full flex-col items-center justify-center bg-background-light dark:bg-background-dark px-6 text-center">
+                <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mb-6">
+                    <span className="material-symbols-outlined text-green-500 text-[32px]">check_circle</span>
+                </div>
+                <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Verifica o teu email!</h1>
+                <p className="text-slate-500 max-w-sm mb-8">
+                    Enviámos um link de confirmação para <strong>{email}</strong>.
+                    <br />Clica no link para ativar a tua conta e continuar.
+                </p>
+                <Link href="/auth/login">
+                    <button className="w-full max-w-xs rounded-lg bg-neutral-800 py-3 text-sm font-bold text-white hover:bg-neutral-700 transition-colors">
+                        Voltar ao Login
+                    </button>
+                </Link>
+            </div>
+        );
+    }
 
     return (
         <div className="flex h-screen w-full flex-col overflow-hidden bg-background-light dark:bg-background-dark font-display antialiased text-slate-900 dark:text-white selection:bg-primary selection:text-white">
@@ -22,7 +77,13 @@ export default function SignupPage() {
                     </div>
 
                     {/* Form Section */}
-                    <div className="w-full space-y-5">
+                    <form onSubmit={handleSignup} className="w-full space-y-5">
+                        {error && (
+                            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-sm text-center">
+                                {error}
+                            </div>
+                        )}
+
                         {/* Email Field */}
                         <div className="group relative">
                             <label className="block text-sm font-medium text-gray-400 mb-1.5 ml-1" htmlFor="email">Email</label>
@@ -32,6 +93,9 @@ export default function SignupPage() {
                                     id="email"
                                     placeholder="exemplo@email.com"
                                     type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
                                 />
                                 <span className="absolute right-3 text-gray-500 material-symbols-outlined text-[20px]">mail</span>
                             </div>
@@ -46,6 +110,10 @@ export default function SignupPage() {
                                     id="password"
                                     placeholder="••••••••"
                                     type={showPassword ? "text" : "password"}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                    minLength={6}
                                 />
                                 <button
                                     className="absolute right-3 text-gray-500 hover:text-white transition-colors flex items-center justify-center focus:outline-none"
@@ -58,12 +126,19 @@ export default function SignupPage() {
                         </div>
 
                         {/* Submit Button */}
-                        <Link href="/onboarding/choose-profile-type" className="block w-full">
-                            <button className="w-full mt-2 flex items-center justify-center rounded-lg bg-primary py-3.5 px-4 text-sm font-bold text-white shadow-sm hover:bg-[#488a7c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-colors duration-200 tracking-wide uppercase">
-                                Criar conta
-                            </button>
-                        </Link>
-                    </div>
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full mt-2 flex items-center justify-center rounded-lg bg-primary py-3.5 px-4 text-sm font-bold text-white shadow-sm hover:bg-[#488a7c] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-colors duration-200 tracking-wide uppercase disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {loading ? (
+                                <span className="flex items-center gap-2">
+                                    <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
+                                    Criando conta...
+                                </span>
+                            ) : "Criar conta"}
+                        </button>
+                    </form>
                 </div>
 
                 {/* Footer / Login Link */}
