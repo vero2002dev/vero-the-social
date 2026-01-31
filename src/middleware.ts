@@ -74,11 +74,15 @@ export async function middleware(request: NextRequest) {
       .eq('id', user.id)
       .single();
 
-    // If not verified and trying to access app (except verification pages), redirect to verification required
+    // Check if user is admin
+    const { data: isAdmin } = await supabase.rpc('is_admin');
+
+    // If not verified AND not admin, redirect to verification required
     if (
       profile &&
       profile.verification_status !== 'verified' &&
-      !pathname.startsWith('/verification')
+      !pathname.startsWith('/verification') &&
+      !isAdmin
     ) {
       const url = request.nextUrl.clone();
       url.pathname = '/verification/required';
