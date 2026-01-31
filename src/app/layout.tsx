@@ -12,6 +12,28 @@ const plusJakarta = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: 'VERO - Authentic Connections',
   description: 'Premium platform for genuine connections',
+  openGraph: {
+    title: 'VERO - Authentic Connections',
+    description: 'Join VERO and find your perfect match today. Experience dating like never before.',
+    url: 'https://vero.love',
+    siteName: 'VERO',
+    images: [
+      {
+        url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=2400', // Mood image
+        width: 1200,
+        height: 630,
+        alt: 'VERO Dating App',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'VERO - Authentic Connections',
+    description: 'Premium platform for genuine connections',
+    images: ['https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=2400'],
+  },
 };
 
 export default function RootLayout({
