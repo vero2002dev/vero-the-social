@@ -13,6 +13,7 @@ const MOCK_PROFILE = {
 
 export default function ExplorePage() {
     const [profiles, setProfiles] = useState<any[]>([]);
+    const [matchModal, setMatchModal] = useState<any>(null); // { profile: ... }
     const [currentIndex, setCurrentIndex] = useState(0);
     const [loading, setLoading] = useState(true);
     const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
@@ -67,23 +68,30 @@ export default function ExplorePage() {
         const action = direction === 'right' ? 'like' : 'pass';
         setSwipeDirection(direction);
 
-        // Optimistic UI update: Wait small delay for animation then move next
+        // OPTIMISTIC UPDATE:
+        // 1. Move to next card immediately (for UX speed)
+        // 2. Process database in background
+        const currentSwipeIndex = currentIndex;
+        setCurrentIndex(prev => prev + 1);
+        setSwipeDirection(null);
+
+        // Background Processing
         setTimeout(async () => {
             const { data: { user } } = await supabase.auth.getUser();
 
             if (user) {
-                // Persist interaction
-                // @ts-ignore
-                await supabase.from('profile_interactions').insert({
-                    actor_id: user.id,
+                // Call server-side match logic
+                const { data, error } = await supabase.rpc('handle_new_swipe', {
                     target_id: target.id,
                     interaction_type: action
                 });
-            }
 
-            setSwipeDirection(null);
-            setCurrentIndex(prev => prev + 1);
-        }, 300); // 300ms animation duration
+                // Check for MATCH!
+                if (data && data.is_match) {
+                    setMatchModal(target);
+                }
+            }
+        }, 300); // Small delay to sync with animation if needed
     };
 
     // Current card to display
@@ -118,6 +126,53 @@ export default function ExplorePage() {
 
     return (
         <>
+            {/* MATCH OVERLAY MODAL */}
+            {matchModal && (
+                <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-xl animate-in fade-in duration-500">
+                    <h2 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-primary to-green-400 mb-8 tracking-tighter animate-bounce">
+                        IT'S A MATCH!
+                    </h2>
+
+                    <div className="flex items-center justify-center gap-4 mb-12">
+                        {/* My Avatar (Placeholder current user) */}
+                        <div className="w-24 h-24 rounded-full border-4 border-white/20 overflow-hidden relative">
+                            <div className="absolute inset-0 bg-gray-800 animate-pulse"></div>
+                            {/* In real app, fetch my avatar here too */}
+                        </div>
+
+                        <div className="flex items-center justify-center text-primary text-3xl font-bold">
+                            X
+                        </div>
+
+                        <div className="w-24 h-24 rounded-full border-4 border-primary overflow-hidden shadow-[0_0_30px_rgba(84,155,140,0.6)]">
+                            <img src={matchModal.avatar_url} className="w-full h-full object-cover" />
+                        </div>
+                    </div>
+
+                    <p className="text-white text-lg mb-8 text-center max-w-xs font-medium">
+                        You and <span className="text-primary font-bold">{matchModal.display_name}</span> liked each other.
+                    </p>
+
+                    <button
+                        onClick={() => {
+                            setMatchModal(null);
+                            // In future: Redirect to chat
+                        }}
+                        className="w-64 py-4 rounded-full bg-primary text-background-dark font-bold text-lg hover:bg-green-500 transition-all active:scale-95 shadow-xl shadow-primary/20"
+                    >
+                        SEND MESSAGE
+                    </button>
+
+                    <button
+                        onClick={() => setMatchModal(null)}
+                        className="mt-6 text-gray-500 font-medium hover:text-white uppercase tracking-widest text-xs"
+                    >
+                        Keep Swiping
+                    </button>
+
+                </div>
+            )}
+
             {/* Header */}
             <header className="flex items-center justify-between px-4 pt-12 pb-4 z-20">
                 <button className="flex size-10 items-center justify-center rounded-full bg-surface-accent/50 backdrop-blur-sm text-white hover:bg-surface-accent transition-colors">
