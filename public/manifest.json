@@ -1,0 +1,21 @@
+{
+    "name": "VERO - Authentic Connections",
+    "short_name": "VERO",
+    "description": "Premium dating platform for genuine connections.",
+    "start_url": "/app/explore",
+    "display": "standalone",
+    "background_color": "#000000",
+    "theme_color": "#549B8C",
+    "icons": [
+        {
+            "src": "/icon-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/icon-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

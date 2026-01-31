@@ -36,6 +36,8 @@ export const metadata: Metadata = {
   },
 };
 
+import PWARegister from '@/components/PWARegister';
+
 export default function RootLayout({
   children,
 }: {
@@ -45,8 +47,12 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <head>
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/apple-icon.png" />
+        <meta name="theme-color" content="#549B8C" />
       </head>
       <body className={`${plusJakarta.variable} font-display antialiased`}>
+        <PWARegister />
         {children}
       </body>
     </html>
