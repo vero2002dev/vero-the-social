@@ -113,6 +113,33 @@ export default function ProfilePage() {
                             </div>
                             <span className="material-symbols-outlined text-gray-500">chevron_right</span>
                         </button>
+
+                        <button
+                            onClick={() => {
+                                if (navigator.share) {
+                                    navigator.share({
+                                        title: 'VERO - Dating App',
+                                        text: 'Check out VERO, the new dating app!',
+                                        url: window.location.origin
+                                    }).catch(console.error);
+                                } else {
+                                    navigator.clipboard.writeText(window.location.origin);
+                                    alert('Link copied to clipboard!');
+                                }
+                            }}
+                            className="flex items-center justify-between w-full p-4 bg-gradient-to-r from-primary/10 to-green-500/10 rounded-2xl hover:bg-primary/20 transition-colors border border-primary/20"
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-primary/20 rounded-lg text-primary">
+                                    <span className="material-symbols-outlined">ios_share</span>
+                                </div>
+                                <div className="flex flex-col items-start">
+                                    <span className="font-bold text-primary">Invite Friends</span>
+                                    <span className="text-[10px] text-gray-500 uppercase tracking-wider">Get Full Access</span>
+                                </div>
+                            </div>
+                            <span className="material-symbols-outlined text-primary">arrow_forward</span>
+                        </button>
                     </div>
                 </div>
             </div>
