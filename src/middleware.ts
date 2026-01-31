@@ -77,6 +77,10 @@ export async function middleware(request: NextRequest) {
     // Check if user is admin
     const { data: isAdmin } = await supabase.rpc('is_admin');
 
+    // NUCLEAR OPTION: Hardcoded Admin Bypass
+    // This ensures the owner can ALWAYS access, even if DB is broken
+    const isHardcodedAdmin = user.email === 'jorge.pinto.correia1@gmail.com';
+
     // 1. Terms Gate: If terms not accepted, redirect to terms page
     // (Allow access to terms page itself)
     if (
@@ -96,6 +100,7 @@ export async function middleware(request: NextRequest) {
       profile.verification_status !== 'verified' &&
       !pathname.startsWith('/verification') &&
       !isAdmin &&
+      !isHardcodedAdmin &&
       // Ensure we don't block the Terms page
       !pathname.startsWith('/onboarding/terms')
     ) {
