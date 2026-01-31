@@ -5,7 +5,73 @@
 export type Database = {
   public: {
     Tables: {
-      profiles: any;
+      profiles: {
+        Row: {
+          id: string;
+          profile_type: 'single' | 'couple';
+          display_name: string | null;
+          couple_name: string | null;
+          bio: string | null;
+          avatar_url: string | null;
+          avatar_locked: boolean | null;
+          verification_status: 'unverified' | 'pending' | 'verified' | 'rejected' | 'banned';
+          verified_at: string | null;
+          strikes: number | null;
+          active_intent_id: string | null;
+          accepted_dynamics: any | null; // JSON
+          terms_accepted_at: string | null;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id: string;
+          profile_type?: 'single' | 'couple';
+          display_name?: string | null;
+          couple_name?: string | null;
+          bio?: string | null;
+          avatar_url?: string | null;
+          verification_status?: 'unverified' | 'pending' | 'verified' | 'rejected' | 'banned';
+          terms_accepted_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          profile_type?: 'single' | 'couple';
+          display_name?: string | null;
+          couple_name?: string | null;
+          bio?: string | null;
+          avatar_url?: string | null;
+          verification_status?: 'unverified' | 'pending' | 'verified' | 'rejected' | 'banned';
+          terms_accepted_at?: string | null;
+          updated_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "profiles_id_fkey";
+            columns: ["id"];
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      admin_users: {
+        Row: {
+          user_id: string;
+          email: string;
+          granted_by: string | null;
+          created_at: string | null;
+        };
+        Insert: {
+          user_id: string;
+          email: string;
+          granted_by?: string | null;
+        };
+        Update: {
+          user_id?: string;
+          email?: string;
+          granted_by?: string | null;
+        };
+      };
       intents: any;
       gallery_photos: any;
       verification_requests: any;
@@ -13,7 +79,6 @@ export type Database = {
       connection_members: any;
       messages: any;
       reports: any;
-      admin_users: any;
     };
     Enums: {
       profile_type: 'single' | 'couple';
