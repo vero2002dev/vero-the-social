@@ -70,19 +70,34 @@ export async function middleware(request: NextRequest) {
   if (user && pathname.startsWith('/app')) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('verification_status')
+      .select('verification_status, terms_accepted_at')
       .eq('id', user.id)
       .single();
 
     // Check if user is admin
     const { data: isAdmin } = await supabase.rpc('is_admin');
 
-    // If not verified AND not admin, redirect to verification required
+    // 1. Terms Gate: If terms not accepted, redirect to terms page
+    // (Allow access to terms page itself)
+    if (
+      profile &&
+      !profile.terms_accepted_at &&
+      !pathname.startsWith('/onboarding/terms') &&
+      !pathname.startsWith('/auth')
+    ) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/onboarding/terms';
+      return NextResponse.redirect(url);
+    }
+
+    // 2. Verification Gate: If not verified AND not admin, redirect to verification required
     if (
       profile &&
       profile.verification_status !== 'verified' &&
       !pathname.startsWith('/verification') &&
-      !isAdmin
+      !isAdmin &&
+      // Ensure we don't block the Terms page
+      !pathname.startsWith('/onboarding/terms')
     ) {
       const url = request.nextUrl.clone();
       url.pathname = '/verification/required';
