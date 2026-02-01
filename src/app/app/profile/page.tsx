@@ -1,5 +1,6 @@
 'use client';
 
+import Link from "next/link";
 import AvatarUpload from "@/components/AvatarUpload";
 
 // ... inside ProfilePage component ...
@@ -63,7 +64,7 @@ const updateProfileAvatar = async (url: string) => {
         <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Settings</h3>
 
         <div className="flex flex-col gap-3">
-            <button className="flex items-center justify-between w-full p-4 bg-white dark:bg-white/5 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/10 transition-colors">
+            <Link href="/app/profile/edit" className="flex items-center justify-between w-full p-4 bg-white dark:bg-white/5 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/10 transition-colors">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-primary/10 rounded-lg text-primary">
                         <span className="material-symbols-outlined">edit</span>
@@ -71,7 +72,7 @@ const updateProfileAvatar = async (url: string) => {
                     <span className="font-medium">Edit Profile</span>
                 </div>
                 <span className="material-symbols-outlined text-gray-500">chevron_right</span>
-            </button>
+            </Link>
 
             <button className="flex items-center justify-between w-full p-4 bg-white dark:bg-white/5 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/10 transition-colors">
                 <div className="flex items-center gap-3">

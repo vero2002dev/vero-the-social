@@ -19,6 +19,12 @@ BEGIN
     -- =========================================================
     -- ALESSIA (The One)
     -- =========================================================
+    -- 0. Garantir que o ADMIN (Jorge) está VERIFICADO
+    INSERT INTO public.profiles (id, display_name, verification_status)
+    VALUES (jorge_id, 'Jorge', 'verified')
+    ON CONFLICT (id) DO UPDATE
+    SET verification_status = 'verified';
+
     -- 1. Insert Auth (Fake)
     INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
     VALUES (
@@ -60,9 +66,9 @@ BEGIN
     INSERT INTO auth.users (id, email, email_confirmed_at)
     VALUES (carol_id, 'carol@test.com', NOW()) ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO public.profiles (id, display_name, bio, profile_type, avatar_url, terms_accepted_at)
+    INSERT INTO public.profiles (id, display_name, bio, profile_type, verification_status, avatar_url, terms_accepted_at)
     VALUES (
-        carol_id, 'Carol', 'Adoro vinho e viagens.', 'single', 
+        carol_id, 'Carol', 'Adoro vinho e viagens.', 'single', 'verified',
         'https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=1000&auto=format&fit=crop',
         NOW()
     ) ON CONFLICT (id) DO NOTHING;
@@ -73,9 +79,9 @@ BEGIN
     INSERT INTO auth.users (id, email, email_confirmed_at)
     VALUES (bea_id, 'bea@test.com', NOW()) ON CONFLICT (id) DO NOTHING;
 
-    INSERT INTO public.profiles (id, display_name, bio, profile_type, avatar_url, terms_accepted_at)
+    INSERT INTO public.profiles (id, display_name, bio, profile_type, verification_status, avatar_url, terms_accepted_at)
     VALUES (
-        bea_id, 'Bea', 'Procurando novas aventuras.', 'single', 
+        bea_id, 'Bea', 'Procurando novas aventuras.', 'single', 'verified',
         'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=1000&auto=format&fit=crop',
         NOW()
     ) ON CONFLICT (id) DO NOTHING;
