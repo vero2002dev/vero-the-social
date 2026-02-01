@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import AvatarUpload from "@/components/AvatarUpload";
+import GalleryUpload from "@/components/GalleryUpload";
 
 // ... inside ProfilePage component ...
 
@@ -59,6 +60,8 @@ const updateProfileAvatar = async (url: string) => {
             <span className="text-xs text-gray-500 uppercase tracking-wider">Views</span>
         </div>
     </div>
+
+    {profile?.id && <GalleryUpload uid={profile.id} />}
 
     <div className="mt-8 w-full">
         <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Settings</h3>
