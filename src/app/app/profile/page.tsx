@@ -74,7 +74,7 @@ const updateProfileAvatar = async (url: string) => {
                 <span className="material-symbols-outlined text-gray-500">chevron_right</span>
             </Link>
 
-            <button className="flex items-center justify-between w-full p-4 bg-white dark:bg-white/5 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/10 transition-colors">
+            <Link href="/app/profile/discovery" className="flex items-center justify-between w-full p-4 bg-white dark:bg-white/5 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/10 transition-colors">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-purple-500/10 rounded-lg text-purple-500">
                         <span className="material-symbols-outlined">auto_awesome</span>
@@ -82,7 +82,7 @@ const updateProfileAvatar = async (url: string) => {
                     <span className="font-medium">Discovery Settings</span>
                 </div>
                 <span className="material-symbols-outlined text-gray-500">chevron_right</span>
-            </button>
+            </Link>
 
             <button
                 onClick={() => {
