@@ -8,6 +8,7 @@ import AvatarUpload from "@/components/AvatarUpload";
 export default function EditProfilePage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [userId, setUserId] = useState<string | null>(null);
     const [formData, setFormData] = useState({
         display_name: '',
         bio: '',
@@ -34,6 +35,7 @@ export default function EditProfilePage() {
                 .single();
 
             if (data) {
+                setUserId(user.id);
                 setFormData({
                     display_name: data.display_name || '',
                     bio: data.bio || '',
@@ -109,27 +111,14 @@ export default function EditProfilePage() {
 
                 {/* Avatar */}
                 <div className="flex justify-center">
-                    <AvatarUpload
-                        uid="temp" // We handle upload internally in component, but this is just for display if we wanted to pass UID. Actually AvatarUpload handles its own upload. 
-                        // Wait, AvatarUpload needs a UID to construct path. We can get it from auth or pass it if we had it.
-                        // Actually, looking at AvatarUpload implementation: it accepts `uid`.
-                        // We need the user ID. We can get it from supabase.auth.getUser() but we did that in useEffect.
-                        // However, we didn't store just ID in state. 
-                        // Let's rely on standard method or pass a dummy if component handles path correctly. 
-                        // Checking AvatarUpload: `const storagePath = ${uid}/${fileName};`
-                        // So we NEED the UID.
-                        // Let's fetch UID properly.
-                        // For now, let's fix the UID issue in next iteration or component usage. 
-                        // Actually I can get user ID from the initial fetch.
-                        uid={'me'} // This is risky if I don't have the real ID. 
-                        // Let's ignore this for a second and just implement form fields first? 
-                        // No, avatar is key. 
-                        // I will simplify: The component I built earlier `AvatarUpload` takes `uid`. 
-                        // I should store `userId` in state.
-                        url={formData.avatar_url}
-                        onUpload={handleAvatarUpload}
-                        size={120}
-                    />
+                    {userId && (
+                        <AvatarUpload
+                            uid={userId}
+                            url={formData.avatar_url}
+                            onUpload={handleAvatarUpload}
+                            size={120}
+                        />
+                    )}
                 </div>
                 {/* NOTE: I passed 'me' as UID which might break folder structure if not careful. 
                     I should update the component to accept the real ID. 
