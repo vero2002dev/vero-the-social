@@ -72,8 +72,18 @@ export default async function AdminReportsPage() {
                                 <td className="px-6 py-4 text-right">
                                     {!report.resolved_at && (
                                         <div className="flex justify-end gap-2">
-                                            <button className="px-3 py-1 bg-white/10 hover:bg-white/20 rounded text-xs text-white">Dismiss</button>
-                                            <button className="px-3 py-1 bg-red-500 hover:bg-red-600 rounded text-xs text-white font-bold">Ban User</button>
+                                            <form action="/api/admin/reports" method="POST">
+                                                <input type="hidden" name="id" value={report.id} />
+                                                <input type="hidden" name="action" value="dismiss" />
+                                                <button type="submit" className="px-3 py-1 bg-white/10 hover:bg-white/20 rounded text-xs text-white">Dismiss</button>
+                                            </form>
+
+                                            <form action="/api/admin/reports" method="POST">
+                                                <input type="hidden" name="id" value={report.id} />
+                                                <input type="hidden" name="reported_profile_id" value={report.reported_profile_id} />
+                                                <input type="hidden" name="action" value="ban" />
+                                                <button type="submit" className="px-3 py-1 bg-red-500 hover:bg-red-600 rounded text-xs text-white font-bold">Ban User</button>
+                                            </form>
                                         </div>
                                     )}
                                 </td>
