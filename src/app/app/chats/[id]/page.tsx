@@ -10,9 +10,57 @@ export default function ChatRoomPage() {
     const [newMessage, setNewMessage] = useState("");
     const [otherPerson, setOtherPerson] = useState<any>(null);
     const [currentUser, setCurrentUser] = useState<any>(null);
+    const [showMenu, setShowMenu] = useState(false);
+    const [showReportModal, setShowReportModal] = useState(false);
+    const [reportReason, setReportReason] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const supabase = createClient();
     const router = useRouter();
+
+    const handleUnmatch = async () => {
+        if (!confirm("Are you sure you want to unmatch? This cannot be undone.")) return;
+
+        try {
+            const { error } = await supabase
+                .from('connections')
+                .update({ status: 'blocked' })
+                .eq('id', id);
+
+            if (error) throw error;
+            router.push('/app/chats');
+        } catch (error) {
+            console.error('Error unmatching:', error);
+            alert('Failed to unmatch.');
+        }
+    };
+
+    const handleReport = async () => {
+        try {
+            if (!currentUser || !otherPerson) return;
+
+            const { error } = await supabase
+                .from('reports')
+                .insert({
+                    reporter_id: currentUser.id,
+                    reported_profile_id: otherPerson.id,
+                    reason: reportReason,
+                    details: 'Reported from chat'
+                });
+
+            if (error) throw error;
+
+            await supabase
+                .from('connections')
+                .update({ status: 'blocked' })
+                .eq('id', id);
+
+            alert('User reported. Conversation closed.');
+            router.push('/app/chats');
+        } catch (error) {
+            console.error('Error reporting:', error);
+            alert('Failed to submit report.');
+        }
+    };
 
     // Scroll to bottom
     const scrollToBottom = () => {
@@ -277,8 +325,8 @@ export default function ChatRoomPage() {
                                     key={reason}
                                     onClick={() => setReportReason(reason)}
                                     className={`w-full p-3 rounded-xl text-left text-sm font-medium border transition-colors ${reportReason === reason
-                                            ? 'border-primary bg-primary/10 text-primary'
-                                            : 'border-white/10 hover:bg-white/5'
+                                        ? 'border-primary bg-primary/10 text-primary'
+                                        : 'border-white/10 hover:bg-white/5'
                                         }`}
                                 >
                                     {reason}
@@ -304,6 +352,50 @@ export default function ChatRoomPage() {
                     </div>
                 </div>
             )}
-        </div>
+        </form>
+
+             {/* REPORT MODAL */ }
+    {
+        showReportModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                <div className="bg-surface-light dark:bg-[#1a1a1a] w-full max-w-sm rounded-2xl p-6 border border-white/10">
+                    <h3 className="text-lg font-bold mb-4">Report User</h3>
+                    <p className="text-sm text-gray-400 mb-4">Why are you reporting this user? This will also block them.</p>
+
+                    <div className="space-y-2 mb-6">
+                        {['Fake Profile', 'Harassment', 'Inappropriate Content', 'Other'].map((reason) => (
+                            <button
+                                key={reason}
+                                onClick={() => setReportReason(reason)}
+                                className={`w-full p-3 rounded-xl text-left text-sm font-medium border transition-colors ${reportReason === reason
+                                        ? 'border-primary bg-primary/10 text-primary'
+                                        : 'border-white/10 hover:bg-white/5'
+                                    }`}
+                            >
+                                {reason}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="flex gap-3">
+                        <button
+                            onClick={() => setShowReportModal(false)}
+                            className="flex-1 py-3 font-bold text-gray-400 hover:text-white"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleReport}
+                            disabled={!reportReason}
+                            className="flex-1 py-3 bg-red-500 text-white rounded-xl font-bold disabled:opacity-50"
+                        >
+                            Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+        </div >
     );
 }
