@@ -27,28 +27,9 @@ export default function ExplorePage() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            // 1. Get IDs I already interacted with
-            const { data: interactions } = await supabase
-                .from('profile_interactions')
-                .select('target_id')
-                .eq('actor_id', user.id);
-
-            const seenIds = interactions?.map(i => i.target_id) || [];
-            if (user?.id) seenIds.push(user.id); // Add self to ignore list
-
-            // 2. Fetch profiles NOT in seen list
-            let query = supabase.from('profiles').select('*').limit(10);
-
-            if (seenIds.length > 0) {
-                // Note: .not('id', 'in', ...) expects format :(id1,id2) or array?
-                // Supabase JS client handles array in .in(), but .not() "in" filter syntax:
-                // .not('id', 'in', `(${seenIds.join(',')})`)
-                // Safer: manual filter client side for MVP if array is small, 
-                // but let's try strict filter.
-                query = query.not('id', 'in', `(${seenIds.join(',')})`);
-            }
-
-            const { data, error } = await query;
+            // Use server-side filtering for scalability
+            const { data, error } = await supabase
+                .rpc('get_candidates', { limit_count: 10 });
 
             if (data) {
                 setProfiles(data);
