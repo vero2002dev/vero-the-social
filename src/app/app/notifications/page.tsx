@@ -4,10 +4,12 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 export default function NotificationsPage() {
     const [notifications, setNotifications] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const { permission, subscribeUser, loading: pushLoading } = usePushNotifications();
     const router = useRouter();
     const supabase = createClient();
 
@@ -44,6 +46,14 @@ export default function NotificationsPage() {
         }
     };
 
+    // Push Notif Hook
+    // Note: In real app, we'd import this properly. For now, since I just created the file,
+    // I will assume it's available or inline it if I can't import easily without checking paths.
+    // But I saved it to hooks/usePushNotifications.ts, so I should import it.
+    // I'll add the import in a separate step or assume I need to update imports.
+    // Let's add the button below the header.
+
+
     if (loading) {
         return (
             <div className="flex h-full items-center justify-center bg-background-light dark:bg-black">
@@ -59,7 +69,18 @@ export default function NotificationsPage() {
                 <button onClick={() => router.back()} className="p-2 -ml-2 text-gray-500">
                     <span className="material-symbols-outlined">arrow_back</span>
                 </button>
-                <h1 className="text-lg font-bold">Notifications</h1>
+                <div className="flex-1">
+                    <h1 className="text-lg font-bold">Notifications</h1>
+                </div>
+                {permission === 'default' && (
+                    <button
+                        onClick={subscribeUser}
+                        disabled={pushLoading}
+                        className="text-primary text-xs font-bold uppercase tracking-wider px-3 py-1.5 bg-primary/10 rounded-full hover:bg-primary/20"
+                    >
+                        {pushLoading ? '...' : 'Enable Push'}
+                    </button>
+                )}
             </div>
 
             <div className="flex-1 overflow-y-auto">
@@ -77,8 +98,8 @@ export default function NotificationsPage() {
                                 className={`px-4 py-4 flex gap-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors ${!n.is_read ? 'bg-primary/5' : ''}`}
                             >
                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${n.type === 'match' ? 'bg-primary/20 text-primary' :
-                                        n.type === 'system' ? 'bg-amber-500/20 text-amber-500' :
-                                            'bg-gray-200 dark:bg-gray-800 text-gray-500'
+                                    n.type === 'system' ? 'bg-amber-500/20 text-amber-500' :
+                                        'bg-gray-200 dark:bg-gray-800 text-gray-500'
                                     }`}>
                                     <span className="material-symbols-outlined text-xl">
                                         {n.type === 'match' ? 'favorite' :
