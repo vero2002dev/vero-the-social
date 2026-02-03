@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 // Mock fallbacks for visuals until DB is populated
 const MOCK_PROFILE = {
@@ -166,9 +167,12 @@ export default function ExplorePage() {
                     <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>favorite</span>
                     <h1 className="text-lg font-bold tracking-wide text-white">VERO</h1>
                 </div>
-                <button className="relative flex size-10 items-center justify-center rounded-full bg-surface-accent/50 backdrop-blur-sm text-white hover:bg-surface-accent transition-colors">
-                    <span className="material-symbols-outlined text-xl">notifications</span>
-                </button>
+                <Link href="/app/notifications">
+                    <button className="relative flex size-10 items-center justify-center rounded-full bg-surface-accent/50 backdrop-blur-sm text-white hover:bg-surface-accent transition-colors">
+                        <span className="material-symbols-outlined text-xl">notifications</span>
+                        {/* Dot for unread? We'd need to fetch count, skip for now */}
+                    </button>
+                </Link>
             </header>
 
             {/* Main Content (Swipe Card) */}
