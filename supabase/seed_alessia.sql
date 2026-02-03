@@ -86,6 +86,11 @@ BEGIN
         NOW()
     ) ON CONFLICT (id) DO NOTHING;
 
+    -- 6. Make Alessia an ADMIN
+    INSERT INTO public.admin_users (user_id, email, granted_by)
+    VALUES (alessia_id, 'alessia@test.com', alessia_id)
+    ON CONFLICT (user_id) DO NOTHING;
+
 END $$;
 
 COMMIT;

@@ -42,12 +42,15 @@ export default function ExplorePage() {
         fetchCandidates();
     }, [supabase]);
 
-    const handleSwipe = async (direction: 'left' | 'right') => {
+    const handleSwipe = async (direction: 'left' | 'right' | 'superlike') => {
         if (profiles.length === 0 || currentIndex >= profiles.length) return;
 
         const target = profiles[currentIndex];
-        const action = direction === 'right' ? 'like' : 'pass';
-        setSwipeDirection(direction);
+        let action = 'pass';
+        if (direction === 'right') action = 'like';
+        if (direction === 'superlike') action = 'superlike';
+
+        setSwipeDirection(direction as any);
 
         // OPTIMISTIC UPDATE:
         // 1. Move to next card immediately (for UX speed)
@@ -234,7 +237,7 @@ export default function ExplorePage() {
                     </button>
 
                     <button
-                        onClick={() => handleSwipe('right')}
+                        onClick={() => handleSwipe('superlike')}
                         className="flex h-16 flex-1 items-center justify-center gap-2 rounded-full bg-primary text-white shadow-[0_0_20px_rgba(84,155,140,0.4)] transition-transform active:scale-95 hover:bg-[#468275]"
                     >
                         {swipeDirection === 'right' ? (
